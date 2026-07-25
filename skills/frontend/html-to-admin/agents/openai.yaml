@@ -1,0 +1,22 @@
+interface:
+  display_name: "HTML 转管理后台"
+  short_description: "将高保真 HTML 原型或前端 Demo 转换为 Vue 3（Element Plus）或 React（Ant Design）管理后台项目。"
+  default_prompt: "使用 html-to-admin 将这个前端 Demo 转换为管理后台项目。先分析页面结构并确认设计决策，再按 7 阶段流程完成转换。"
+
+policy:
+  allow_implicit_invocation: true
+
+parameters:
+  framework:
+    description: "目标框架：vue（Vue 3 + Element Plus）或 react（React + Ant Design）"
+    default: "vue"
+    values:
+      - "vue"
+      - "react"
+
+  icon_strategy:
+    description: "图标方案：component（组件库图标，推荐）或 lucide（Lucide 通用图标库）"
+    default: "component"
+    values:
+      - "component"
+      - "lucide"

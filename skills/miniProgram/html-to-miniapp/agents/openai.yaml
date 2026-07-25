@@ -1,0 +1,23 @@
+interface:
+  display_name: "HTML 转小程序"
+  short_description: "将 HTML/React/Vue Demo 或高保真原型转换为微信原生小程序、uni-app 或 Taro 项目。"
+  default_prompt: "使用 html-to-miniapp 将这个前端 Demo 转换为小程序项目。先分析页面结构并确认设计决策，再按 5 阶段流程完成转换。"
+
+policy:
+  allow_implicit_invocation: true
+
+parameters:
+  target:
+    description: "目标平台：native（微信原生）、uniapp（uni-app）或 taro（Taro）"
+    default: "native"
+    values:
+      - "native"
+      - "uniapp"
+      - "taro"
+
+  icon_strategy:
+    description: "图标方案：base64（Lucide Base64 内联）或 png（Lucide SVG 转 PNG）"
+    default: "base64"
+    values:
+      - "base64"
+      - "png"
