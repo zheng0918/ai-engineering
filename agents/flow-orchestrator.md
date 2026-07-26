@@ -357,8 +357,11 @@ Spec 解析结果确认：
 ### POST-FLIGHT（调度后）
 
 ```
-1. 解析端级 agent 输出的 <binding-compliance> 标记
-2. 逐条对照 rule 约束检查代码输出
+1. 解析端级 agent 输出:
+   - Phase 1/3 agent 输出 <binding-compliance> 标记
+   - Phase 2 link-coder 输出 <contract-compliance> 标记
+   - Phase 4 integration-verifier 输出 <integration-report> 标记
+2. 逐条对照 rule 约束检查代码输出（Phase 1/2 仅检查文档完整性，不检查代码）
 3. 扫描禁止关键字（JPA / System.out / @Select 注解 / any 类型 / var 声明等）
 4. Phase 3 agent 额外检查: Link 契约一致性（URL/Method/字段/分页/Token）
 5. 全部匹配 → PASS
