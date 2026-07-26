@@ -76,6 +76,7 @@ miniProgram:
 | 响应码正确性 | 正常请求返回 200，异常请求返回对应错误码 | 响应 code 与 Link 契约 ErrorCode 映射一致 |
 | 响应结构 | Response JSON 字段与 Link 契约一致 | 字段名、层级、类型完全匹配 |
 | Long→String | id 字段为 string 非 number | 所有 Long 类型 ID 在 JSON 中序列化为字符串 |
+| 日期格式 | 检查 Response 中日期字段格式 | 符合 Link 契约定义的日期格式（如 yyyy-MM-dd HH:mm:ss） |
 | 分页规范 | pageNum/pageSize/total/list 齐全 | 分页接口返回 PageResult 标准结构 |
 | 错误码 | 与 Link 契约的 ErrorCode 映射一致 | 错误场景返回的 code 值与契约定义一致 |
 | 数据落库 | POST/PUT 后直接查 DB 对比期望值 | DB 中的数据与请求参数一致，审计列自动填充 |
@@ -93,7 +94,7 @@ until curl -s http://localhost:8200/actuator/health | grep -q UP; do sleep 2; do
 ```bash
 # 正常请求验证
 curl -s -X GET "http://localhost:8200/api/v1/knowledge-bases?pageNum=1&pageSize=10" \
-  -H "Authorization: Bearer $TOKEN" | python3 -c "
+  -H "Authorization: Bearer $TOKEN" | python -c "
 import sys, json
 data = json.load(sys.stdin)
 assert data['code'] == 0, f'Expected code=0, got {data[\"code\"]}'
@@ -109,7 +110,7 @@ print('PASS: Response structure valid')
 curl -s -X POST "http://localhost:8200/api/v1/knowledge-bases" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"name":"验证测试知识库","description":"集成验证自动创建"}' | python3 -c "
+  -d '{"name":"验证测试知识库","description":"集成验证自动创建"}' | python -c "
 import sys, json
 data = json.load(sys.stdin)
 assert data['code'] == 0, f'Create failed: {data.get(\"message\")}'
@@ -218,7 +219,7 @@ echo "Step 1: 登录"
 LOGIN_RESP=$(curl -s -X POST "http://localhost:8200/api/v1/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}')
-TOKEN=$(echo "$LOGIN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['token'])")
+TOKEN=$(echo "$LOGIN_RESP" | python -c "import sys,json; print(json.load(sys.stdin)['data']['token'])")
 echo "  Token obtained: ${TOKEN:0:20}..."
 
 # Step 2: 创建知识库
@@ -227,21 +228,21 @@ CREATE_RESP=$(curl -s -X POST "http://localhost:8200/api/v1/knowledge-bases" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"HappyPath测试","description":"端到端验证"}')
-KB_ID=$(echo "$CREATE_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['code']==0; print(d['data']['id'])")
+KB_ID=$(echo "$CREATE_RESP" | python -c "import sys,json; d=json.load(sys.stdin); assert d['code']==0; print(d['data']['id'])")
 echo "  Created KB ID: $KB_ID"
 
 # Step 3: 查询列表确认创建成功
 echo "Step 3: 查询列表"
 LIST_RESP=$(curl -s "http://localhost:8200/api/v1/knowledge-bases?pageNum=1&pageSize=10" \
   -H "Authorization: Bearer $TOKEN")
-FOUND=$(echo "$LIST_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(any(item['id']=='$KB_ID' for item in d['data']['list']))")
+FOUND=$(echo "$LIST_RESP" | python -c "import sys,json; d=json.load(sys.stdin); print(any(item['id']=='$KB_ID' for item in d['data']['list']))")
 echo "  KB in list: $FOUND"
 
 # Step 4: 查看详情
 echo "Step 4: 查看详情"
 DETAIL_RESP=$(curl -s "http://localhost:8200/api/v1/knowledge-bases/$KB_ID" \
   -H "Authorization: Bearer $TOKEN")
-DETAIL_NAME=$(echo "$DETAIL_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['code']==0; print(d['data']['name'])")
+DETAIL_NAME=$(echo "$DETAIL_RESP" | python -c "import sys,json; d=json.load(sys.stdin); assert d['code']==0; print(d['data']['name'])")
 echo "  Detail name: $DETAIL_NAME"
 
 # Step 5: 编辑
@@ -250,21 +251,21 @@ EDIT_RESP=$(curl -s -X PUT "http://localhost:8200/api/v1/knowledge-bases/$KB_ID"
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"HappyPath测试-已编辑","description":"端到端验证-已修改"}')
-EDIT_CODE=$(echo "$EDIT_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['code'])")
+EDIT_CODE=$(echo "$EDIT_RESP" | python -c "import sys,json; print(json.load(sys.stdin)['code'])")
 echo "  Edit result: $EDIT_CODE"
 
 # Step 6: 删除
 echo "Step 6: 删除"
 DELETE_RESP=$(curl -s -X DELETE "http://localhost:8200/api/v1/knowledge-bases/$KB_ID" \
   -H "Authorization: Bearer $TOKEN")
-DELETE_CODE=$(echo "$DELETE_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['code'])")
+DELETE_CODE=$(echo "$DELETE_RESP" | python -c "import sys,json; print(json.load(sys.stdin)['code'])")
 echo "  Delete result: $DELETE_CODE"
 
 # Step 7: 确认删除（查详情应返回不存在）
 echo "Step 7: 确认删除"
 CONFIRM_RESP=$(curl -s "http://localhost:8200/api/v1/knowledge-bases/$KB_ID" \
   -H "Authorization: Bearer $TOKEN")
-CONFIRM_CODE=$(echo "$CONFIRM_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['code'])")
+CONFIRM_CODE=$(echo "$CONFIRM_RESP" | python -c "import sys,json; print(json.load(sys.stdin)['code'])")
 echo "  After delete query code: $CONFIRM_CODE (expected non-zero)"
 
 echo "=== Happy Path 完成 ==="
