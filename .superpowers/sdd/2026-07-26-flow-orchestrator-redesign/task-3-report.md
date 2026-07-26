@@ -81,3 +81,27 @@ Added a diagram showing where this agent fits in the 5-phase topology, clarifyin
 | Key Principles (verify only, Link as source, no MiniProgram auto) | Yes | Embedded in role, execution, and forbidden sections |
 
 All sections from the brief are included. No omissions.
+
+---
+
+## Fix Round 1 (2026-07-26)
+
+### Finding 1: 日期格式检查缺失 (Important)
+**问题**: Backend API 检查项清单中缺少日期格式验证行，而 brief 中明确将 "date format" 与 "Long to String" 并列为字段类型验证目标。
+
+**修复**: 在 `Long to String` 和 `分页规范` 之间插入新行：
+```
+| 日期格式 | 检查 Response 中日期字段格式 | 符合 Link 契约定义的日期格式（如 yyyy-MM-dd HH:mm:ss） |
+```
+使得 Backend API 检查项从 8 项增加到 9 项，覆盖所有 brief 要求的字段类型验证。
+
+### Finding 2: python3 命令不兼容 Windows (Minor)
+**问题**: 验证脚本中使用 `python3` 命令，但 Windows 环境标准命令为 `python`。
+
+**修复**: 将全部 9 处 `python3` 替换为 `python`，涉及 3 个代码块：
+- Backend API 验证脚本模板 (2 处)
+- Happy Path 业务流程验证脚本 (7 处)
+
+**验证结果**:
+- `grep python3` → 0 matches (已全部替换)
+- `grep "python -c"` → 9 matches (确认替换成功)
