@@ -20,12 +20,19 @@
 ## 执行协议
 
 ```
-1. RECEIVE 接收 flow-orchestrator 的调度指令（含目标框架 + 维度 + 输入上下文）
+1. RECEIVE 接收 flow-orchestrator 的调度指令（含目标框架 + 维度 + Link 契约 + 输入上下文）
 2. LOAD    读取指定维度的 rule 文件 → 提取核心约束
 3. LOAD    读取指定维度的 skill 文件 → 提取代码模板
-4. EXECUTE 按 rule 约束 + skill 模板生成代码
-5. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
-6. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
+4. KNOWLEDGE 读取 knowledge/miniProgram/<dimension>.md → 查阅历史踩坑记录，避坑
+5. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成代码
+6. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
+7. BUILD   执行对应框架的编译命令（无编译错误则 PASS）
+8. CONTRACT 基于 Link 契约校验:
+    a. API 调用 URL/Method 与契约一致
+    b. 分页参数 pageNum/pageSize 统一
+    c. Token 键名统一为 "token"
+    d. rpx 单位扫描、ref<any> 扫描
+9. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
 ```
 
 ---
@@ -125,6 +132,8 @@ features:                       # 仅 enabled=true 时才加载对应 domain rul
 8. □ 图标方案是否统一（不混用多种方案）？
 9. □ 颜色是否使用 CSS 变量 / SCSS 变量（非硬编码色值）？
 10. □ 核心页面是否实现 onShareAppMessage？
+11. □ 编译是否通过？
+12. □ API 调用 URL/Method 是否与 Link 契约一致？
 
 ### 框架专项
 
