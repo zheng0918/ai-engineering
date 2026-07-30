@@ -23,12 +23,13 @@
 1. RECEIVE 接收 flow-orchestrator 的调度指令（含指定维度 + 输入上下文 + Link 契约）
 2. LOAD    读取指定维度的 rule 文件 → 提取核心约束
 3. LOAD    读取指定维度的 skill 文件 → 提取代码模板
-4. EXECUTE 按 rule 约束 + skill 模板生成代码
-5. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
-6. BUILD   执行 mvn compile → 无编译错误则 PASS
-7. START   执行 mvn spring-boot:run → 轮询等待 /actuator/health 就绪
-8. CONTRACT 基于 Link 契约逐接口发送 HTTP 请求 → 校验响应码/响应体/数据落库
-9. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
+4. KNOWLEDGE 读取 knowledge/backend/<dimension>.md → 查阅历史踩坑记录，避坑
+5. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成代码
+6. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
+7. BUILD   执行 mvn compile → 无编译错误则 PASS
+8. START   执行 mvn spring-boot:run → 轮询等待 /actuator/health 就绪
+9. CONTRACT 基于 Link 契约逐接口发送 HTTP 请求 → 校验响应码/响应体/数据落库
+10. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
 ```
 
 ---

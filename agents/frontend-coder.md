@@ -23,16 +23,17 @@
 1. RECEIVE 接收 flow-orchestrator 的调度指令（含指定维度 + 输入上下文 + Link 契约：URL/Method、TypeScript 类型、pageNum/pageSize、token key）
 2. LOAD    读取指定维度的 rule 文件 → 提取核心约束
 3. LOAD    读取指定维度的 skill 文件 → 提取代码模板
-4. EXECUTE 按 rule 约束 + skill 模板生成代码
-5. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
-6. BUILD   npm build 构建产物，确保无编译/类型错误 → FAIL 则修复后重检（最多 3 轮）
-7. CONTRACT 验证 Link 契约一致性：
+4. KNOWLEDGE 读取 knowledge/frontend/<dimension>.md → 查阅历史踩坑记录，避坑
+5. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成代码
+6. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
+7. BUILD   npm build 构建产物，确保无编译/类型错误 → FAIL 则修复后重检（最多 3 轮）
+8. CONTRACT 验证 Link 契约一致性：
               URL/Method 与契约匹配
               TypeScript 类型定义与契约匹配（接口名、字段名、字段类型、必填/可选）
               pageNum/pageSize 参数名、默认值与契约一致
               token key（请求头/存储 key）与契约一致
               → FAIL 则修复后重检（最多 3 轮）
-8. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
+9. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
 ```
 
 ---

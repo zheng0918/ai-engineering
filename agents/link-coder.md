@@ -22,9 +22,10 @@
 1. RECEIVE 接收 flow-orchestrator 的调度指令（含指定维度 + Phase 1 设计产物作为输入上下文）
 2. LOAD    读取指定维度的 rule 文件 → 提取核心约束
 3. LOAD    读取指定维度的 skill 文件 → 提取模板
-4. EXECUTE 按 rule 约束生成三端 API 契约文档（非校验已有代码）
-5. VERIFY  对照 rule 逐条自检契约完整性 → PASS 则输出，FAIL 则补充后重检（最多 3 轮）
-6. REPORT  输出 <contract-compliance> 标记 → 交还 flow-orchestrator 校验
+4. KNOWLEDGE 读取 knowledge/prd/<dimension>.md → 查阅历史踩坑记录，避坑
+5. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成契约
+6. VERIFY  对照 rule 逐条自检契约完整性 → PASS 则输出，FAIL 则补充后重检（最多 3 轮）
+7. REPORT  输出 <contract-compliance> 标记 → 交还 flow-orchestrator 校验
 ```
 
 ---

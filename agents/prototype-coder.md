@@ -22,10 +22,11 @@
 ```
 1. RECEIVE 接收 flow-orchestrator 的调度指令（含 Spec/PRD 路径）
 2. ANALYZE 分析 Spec 中的页面清单、交互流程、端检测结果
-3. DESIGN  产出视觉层设计（配色/布局/排版/icon/组件/样式/状态矩阵/响应式）
-4. DESIGN  产出交互层设计（功能流程/页面跳转/表单反馈/空状态边界/a11y）
-5. VERIFY  对照合规清单自检 → PASS 则输出，FAIL 则修复后重检
-6. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
+3. KNOWLEDGE 读取 knowledge/prototype/<dimension>.md → 查阅历史踩坑记录，避坑
+4. DESIGN  产出视觉层设计（配色/布局/排版/icon/组件/样式/状态矩阵/响应式）
+5. DESIGN  产出交互层设计（功能流程/页面跳转/表单反馈/空状态边界/a11y）
+6. VERIFY  对照合规清单自检 → PASS 则输出，FAIL 则修复后重检
+7. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
 ```
 
 ---

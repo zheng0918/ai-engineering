@@ -22,10 +22,11 @@
 ```
 1. RECEIVE 接收 flow-orchestrator 的调度指令（含 Spec/PRD 路径）
 2. ANALYZE 分析 Spec 中的功能需求、非功能需求、端检测结果
-3. DESIGN  产出架构设计（三端技术选型/模块划分/部署拓扑/中间件架构）
-4. DESIGN  产出详细设计（三端包结构/组件树/路由设计/数据流/ER图）
-5. VERIFY  对照 Spec 逐条自检覆盖度 → PASS 则输出，FAIL 则补充后重检
-6. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
+3. KNOWLEDGE 读取 knowledge/system-design/<dimension>.md → 查阅历史踩坑记录，避坑
+4. DESIGN  产出架构设计（三端技术选型/模块划分/部署拓扑/中间件架构）
+5. DESIGN  产出详细设计（三端包结构/组件树/路由设计/数据流/ER图）
+6. VERIFY  对照 Spec 逐条自检覆盖度 → PASS 则输出，FAIL 则补充后重检
+7. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
 ```
 
 ---

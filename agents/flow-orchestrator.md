@@ -333,7 +333,8 @@ Spec 解析结果确认：
 3. 对每个维度：
    a. READ rules/<domain>/<dimension>.md → 提取核心约束
    b. READ skills/<domain>/<dimension>.md → 提取代码模板
-   c. 构造调度指令：
+   c. READ knowledge/<domain>/<dimension>.md → 提取历史踩坑记录与已知方案
+   d. 构造调度指令：
       """
       [端级 agent]，以下是你的绝对约束（不可跳过、不可降级）：
 
@@ -342,6 +343,9 @@ Spec 解析结果确认：
 
       ## 绑定技能（必须使用以下模板，不得自创变体）
       {列出 skill 的模板}
+
+      ## 知识库参考（历史踩坑记录，生成前必须查阅）
+      {列出 knowledge/<domain>/<dimension>.md 的关键条目}
 
       ## Link 契约（Phase 3 agent 必须遵守）
       {Phase 2 产出的 api-contract.md 内容}
