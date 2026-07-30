@@ -108,6 +108,49 @@ miniProgram:
 iteration:
   maxRounds: 3             # 最大修复轮次（仅 Phase 3 内部）
   failFast: false          # 单端 FAIL 是否阻断其他端
+
+# ====== 可插拔控制 ======
+startPhase: 0              # 起始 Phase（0-5，默认 0 = 完整流程）
+externalInputs:            # 跳过的 Phase 产物须由外部提供
+  systemDesign: ""         # Phase 1 产物：架构设计+详细设计文档路径（startPhase >= 2 时必填）
+  prototype: ""            # Phase 1 产物：高保真原型路径（startPhase >= 2 时必填）
+  linkContract: ""         # Phase 2 产物：API 契约文档路径（startPhase >= 3 时必填）
+```
+
+---
+
+## 可插拔执行机制
+
+> 流程不必从 Phase 0 开始。通过 `startPhase` 参数控制入口，跳过阶段的产物由 `externalInputs` 提供。
+
+### 执行规则
+
+```
+1. Phase 0 解析 Spec + 确认参数时，读取 startPhase
+2. startPhase 未填写 → 询问用户："从哪个 Phase 开始？（0-5，默认 0）"
+3. 验证 externalInputs：被跳过的 Phase 必须有对应外部产物路径
+4. 产物路径不可读或无内容 → 拒绝执行，要求补全
+5. Phase 3 内部三端仍按 targets 开关控制
+```
+
+### 典型场景
+
+| startPhase | 跳过阶段 | 必须提供的外部产物 | 适用场景 |
+|---|---|---|---|
+| 0（默认） | 无 | 无 | 完整流程 |
+| 1 | Phase 0 | Spec 已解析，直接从设计开始 | Spec 参数已手动确认 |
+| 2 | Phase 0-1 | systemDesign + prototype | 设计文档已有（手工/第三方），只生成契约+代码 |
+| 3 | Phase 0-2 | systemDesign + prototype + linkContract | Link 契约已有，三端并行编码 |
+| 4 | Phase 0-3 | 以上全部 + 代码已生成 | 代码修 bug 后只重新跑集成验证 |
+| 5 | Phase 0-4 | 以上全部 | 只跑最终门禁 |
+
+### 产物匹配校验
+
+```
+startPhase >= 2 : externalInputs.systemDesign 非空 + 文件存在
+startPhase >= 2 : externalInputs.prototype 非空 + 文件存在
+startPhase >= 3 : externalInputs.linkContract 非空 + 文件存在
+startPhase >= 4 : 项目目录存在（代码已生成）
 ```
 
 ---
@@ -183,16 +226,25 @@ Spec 解析结果确认：
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ PHASE 0: SPEC 解析                                               │
+│ PHASE 0: SPEC 解析 + 流程入口控制                                  │
 │  1. 读取 Spec 文档                                                │
 │  2. L1 规则匹配 → 提取实体/API/页面/中间件                           │
 │  3. L2 LLM 兜底 → 分析未覆盖语义（如需要）                          │
 │  4. 端检测 → 输出 target 列表                                     │
 │  5. L3 用户确认 → 展示检测结果，等待用户确认或修正                    │
 │  6. 确认项目参数 → 未填写的参数询问用户填充                          │
+│  7. 读取 startPhase → 未填写则询问从哪个 Phase 开始（0-5，默认 0）  │
+│  8. 校验 externalInputs → 被跳过的 Phase 产物必须存在               │
+│                                │                                   │
+│  startPhase ≥ 1 ──────────────┼──→ 跳过 Phase 0，直接进入目标 Phase │
+│  startPhase = 0 ──────────────┘                                   │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
+┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+  startPhase > 1 ? 跳过 Phase 1，读 externalInputs.{systemDesign,
+  prototype} 作为 Phase 2 输入
+└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
 ┌─────────────────────────────────────────────────────────────────┐
 │ PHASE 1: 设计阶段（system-design + prototype 并行）               │
 │                                                                   │
@@ -236,6 +288,10 @@ Spec 解析结果确认：
 └───────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
+┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+  startPhase > 2 ? 跳过 Phase 2，读 externalInputs.linkContract
+  作为 Phase 3 编码基准
+└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
 ┌─────────────────────────────────────────────────────────────────┐
 │ PHASE 2: Link 契约层（编码前契约，非事后校验）                     │
 │                                                                   │
@@ -290,6 +346,9 @@ Spec 解析结果确认：
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
+┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+  startPhase > 3 ? 跳过 Phase 3，代码已生成，直接进入验证
+└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
 ┌─────────────────────────────────────────────────────────────────┐
 │ PHASE 4: 集成验证                                                 │
 │                                                                   │
