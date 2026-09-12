@@ -385,17 +385,62 @@ Phase 0 完成后输出以下面板供用户确认：
 │  □ 部署方案是否区分 dev/test/prod 环境？                                  │
 │  □ 安全方案是否覆盖认证/鉴权/加密/防刷？                                  │
 │                                                                         │
-│  Prototype 审核:                                                        │
+│  Prototype 审核（仅走 Phase 1 时适用）:                                  │
 │  □ 原型是否覆盖 Spec 中所有功能页面？                                     │
 │  □ 每个页面是否包含四态？（loading/error/empty/normal）                   │
 │  □ 可交互组件是否覆盖完整状态矩阵？                                       │
 │  □ 色彩对比度是否满足 WCAG AA？                                          │
 │  □ 图标按钮是否有 aria-label？ Modal 是否有 role="dialog"？              │
 │                                                                         │
-│  全部确认 → 进入 Phase 2 | 有问题 → 返回 Phase 1 修复                    │
+│  ★ 数据模型审核（走 Phase 1.5 或数据模型首次引入时必过）:                  │
+│  □ 实体是否覆盖两份原型的全部页面数据需求？                                │
+│  □ 每个实体的字段是否与原型表格列/表单字段一一对应？                        │
+│  □ 字段类型是否经过两端交叉验证（而非单端推断）？                           │
+│  □ 关系与基数是否正确？（一对多 vs 多对多）                                │
+│  □ 交叉验证覆盖率是否可接受？（低于 60% 需说明）                           │
+│  □ 审计列是否已标注适用实体？                                             │
+│                                                                         │
+│  ★ 业务语义确认（同上，必过）:                                            │
+│  逐条确认 pending-decisions.md:                                          │
+│    | # | 项 | 候选值 | 默认建议 | 你的选择 |                              │
+│  全部确认 → 进入 Phase 2 | 有修正 → 更新 data-model.md 后重新确认          │
+│  ⚠️ 存在「状态 = 待确认」的项时，禁止进入 Phase 2                          │
+│                                                                         │
+│  全部确认 → 进入 Phase 2 | 有问题 → 返回 Phase 1 / 1.5 修复              │
 └────────────────────────────────────────────────────────────────────────┘
+> **门禁 #1 触发条件：**
+
+| 情形 | 数据模型审核 + 业务语义确认 | SystemDesign / Prototype 审核 |
+|---|---|---|
+| startPhase ≤ 1（原型由 Phase 1 生成） | ✅ 必过 | ✅ 必过 |
+| startPhase = 1.5（数据模型由 Phase 1.5 反推） | ✅ 必过 | ❌ 不适用 |
+| startPhase = 2（数据模型由外部提供） | ✅ 必过 | ❌ 不适用 |
+| startPhase ≥ 2.5 | 已在前次门禁确认 | 不适用 |
+
+> 即：**只要数据模型是本次流程新产出或首次引入的，就必须过数据模型审核 + 业务语义确认**；只有此前已过门禁的产物才可复用而不重复确认。
                                 │
                                 ▼
+┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+  startPhase > 1.5 ? 跳过 Phase 1.5，读 externalInputs.dataModel
+  作为 Phase 2 契约的输入
+└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ PHASE 1.5: 原型反推数据模型（★ 新增）                                   │
+│                                                                        │
+│  prototype-to-model 读两份原型，交叉验证:                               │
+│  1. PARSE  分别解析 admin / miniapp 原型（表格列头+表单控件+mock 数据）  │
+│  2. CROSS  同一字段两端比对 → 锁定类型（覆盖率必须统计）                  │
+│  3. EXTRACT 实体 / 字段 / 关系 / 接口 / 状态机 / 角色权限                │
+│  4. DERIVE  派生 schema.sql                                            │
+│  5. GAP    推不出的 → pending-decisions.md（不臆造）                    │
+│  6. VERIFY → REPORT <model-compliance>                                 │
+│                                                                        │
+│  输入: admin 原型 + miniapp 原型                                        │
+│  产出: docs/data-model.md, docs/pending-decisions.md, docs/schema.sql  │
+│                                                                        │
+│  ⚠️ 无 PRD 场景下数据模型的唯一来源                                      │
+│  ⚠️ 不经过 PRE-FLIGHT（rule/skill 不存在）                              │
+└──────────────────────────────────────────────────────────────────────┘
 ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
   startPhase > 2 ? 跳过 Phase 2，读 externalInputs.linkContract
   作为 Phase 3 编码基准
@@ -561,6 +606,7 @@ Phase 0 完成后输出以下面板供用户确认：
 
 > **Phase 1 agent 例外：** system-design-coder 和 prototype-coder 跳过 PRE-FLIGHT。其 rule/skill 目录待建设，当前按各 agent 内部协议执行。仅需传入 PRD 路径即可调度。
 > **Phase 2.5 agent 例外：** database.md 不经过 PRE-FLIGHT。其调度指令直接包含 schema.sql 路径 + 数据库连接参数，按自身协议执行 CONNECT → CHECK → EXECUTE → VERIFY → REPORT。
+> **Phase 1.5 agent 例外：** prototype-to-model 不经过 PRE-FLIGHT。其 rule/skill 目录不存在，调度指令直接包含两份原型路径 + 产品基本信息，按自身协议执行 RECEIVE → PARSE → CROSS → EXTRACT → DERIVE → GAP → VERIFY → REPORT。
 
 ### POST-FLIGHT（调度后）
 
