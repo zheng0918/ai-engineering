@@ -117,10 +117,22 @@ environment:                          # ★ 本机运行时环境（Phase 0 时�
     version: ""                       # 如 18.17.0
     packageManager: "pnpm"
 
-targets:                              # 由 Phase 0 自动检测填充
-  backend: true
-  frontend: true
-  miniProgram: false
+targets:                              # Phase 0 检测 + 用户确认后填充
+  backend:
+    enabled: true
+    mode: "generate"                  # generate(新建) / enhance(已有项目上改)
+    detected: false                   # Phase 0 是否扫到已有项目目录
+    dirName: "vitrine-server"         # mode=generate 时由用户提供
+  frontend:
+    enabled: true
+    mode: "generate"
+    detected: false
+    dirName: "vitrine-admin"
+  miniProgram:
+    enabled: true
+    mode: "generate"
+    detected: false
+    dirName: "vitrine-miniapp"
 
 backend:
   basePackage: "com.example"          # 如有 SPEC-后端API规格.md 则从中提取
@@ -224,6 +236,15 @@ startPhase >= 4 : 项目目录存在（代码已生成）
 | 目录下含 `manifest.json`（微信） | **小程序项目** | 解析框架类型（原生/uniapp/taro） |
 | 目录名为 `docs` 或含多个 `.md` 设计文件 | **文档目录** | 扫描产物清单 |
 
+**检测结果的两种语义：**
+
+```
+目录下含 pom.xml        → backend: mode=enhance, detected=true   （已有项目，在原有基础上改）
+目录不存在 / 无 pom.xml → backend: mode=generate, detected=false  （待生成，需询问目录名）
+```
+
+> **⚠️ 关键**：`mode=generate` 时 Phase 0 **必须**询问用户「待生成的 {端} 项目目录名是什么？」，不得因检测不到而将 `enabled` 置为 `false`。同理适用于 frontend（`package.json`）与 miniProgram（`manifest.json` / `pages.json`）。
+
 ### 文档产物检测
 
 扫描 `docs/`（或识别出的文档目录）下的产物：
@@ -234,7 +255,9 @@ startPhase >= 4 : 项目目录存在（代码已生成）
 | 架构设计 | 文件名含 `architecture` / `架构设计` | Phase 1 产出 / Phase 2 输入 |
 | 详细设计 | 文件名含 `detailed-design` / `详细设计` | Phase 1 产出 / link-coder DERIVE |
 | 数据库 DDL | 文件名含 `schema`，后缀 `.sql` | Phase 1 产出 / Phase 2.5 输入 |
-| 高保真原型 | `prototype/` 目录或文件名含 `prototype` | Phase 1 产出 / Phase 3 输入 |
+| 高保真原型 | `prototype/` 目录或文件名含 `prototype` | **Phase 1 产出 / Phase 1.5 输入** |
+| 数据模型 | 文件名含 `data-model` | Phase 1.5 产出 / Phase 2 输入 |
+| 待确认项 | 文件名含 `pending-decisions` | Phase 1.5 产出 / 门禁 #1 输入 |
 | API 契约 | 文件名含 `api-contract` / `契约` | Phase 2 产出 / Phase 3 输入 |
 | 各端规格 | 文件名含 `SPEC-` | 辅助各端编码参数提取 |
 
@@ -258,7 +281,10 @@ Phase 0 完成后输出以下面板供用户确认：
 │    ❌ architecture.md          (待 Phase 1 生成)      │
 │    ❌ detailed-design.md       (待 Phase 1 生成)      │
 │    ❌ schema.sql               (待 Phase 1 生成)      │
-│    ❌ prototype/               (待 Phase 1 生成)      │
+│    ✅ prototype/admin.html     (已有原型 · 输入)      │
+│    ✅ prototype/miniapp.html   (已有原型 · 输入)      │
+│    ❌ data-model.md            (待 Phase 1.5 生成)   │
+│    ❌ pending-decisions.md     (待 Phase 1.5 生成)   │
 │    ❌ api-contract.md          (待 Phase 2 生成)      │
 │    ✅ SPEC-项目参数.md          (参数来源)             │
 │                                                      │
@@ -272,6 +298,9 @@ Phase 0 完成后输出以下面板供用户确认：
 | 文档产物状况 | 推荐 startPhase | 说明 |
 |-------------|-----------------|------|
 | 无 PRD | 引导创建 PRD | 使用 prd-writer skill 先创建需求文档 |
+| **有原型、无 PRD** | **1.5** | 原型驱动：反推数据模型 → 契约 → 编码 |
+| 有原型 + 数据模型 | 2 | 跳过反推，直接生成契约 |
+| 有原型 + 数据模型 + 契约 | 2.5 | 跳过反推与契约，只建库 + 编码 |
 | 仅有 PRD | Phase 1 | 完整设计 → 契约 → 编码流程 |
 | 有 PRD + 全部设计产物 | Phase 2 | 跳过设计，从契约开始 |
 | 有 PRD + 设计 + 契约 | Phase 3 | 跳过设计+契约，直接编码 |
