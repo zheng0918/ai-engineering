@@ -318,16 +318,22 @@ externalInputs:
 1. RECEIVE  接收调度指令（契约 + 本机环境 + 原型路径）
 2. LOAD     rule / skill
 3. KNOWLEDGE knowledge/
-4. CONVERT  ★ 新增：调用 html-to-admin / html-to-miniapp，
+   ── 以下为在既有协议上的插入点（既有步骤 1-5 保持不变）──
+6. CONVERT  ★ 新增：调用 html-to-admin / html-to-miniapp，
             从原型转换出页面骨架（UI / 布局 / 路由 / 交互）
             产出：{end} 项目 + 转换期 mock 数据
-5. EXECUTE  按 Link 契约生成 API 层，覆盖转换期 mock
-6. VERIFY   对照 rule 逐条自检
-7. BUILD    构建
-8. SELF-TEST 页面四态 + 真实接口联调
-9. CLEANUP  确认 mock 已清除、baseUrl 指向真实后端
-10. REPORT  <binding-compliance>
+7. VERIFY   对照 rule 逐条自检
+8. WIRE     ★ 新增：按 Link 契约生成 API 层，覆盖转换期 mock
+            （命名为 WIRE 而非 EXECUTE —— 既有步骤 5 已占用 EXECUTE）
+9. BUILD    构建
+10. MOCK    自测 mock
+11. START   启动 dev server
+12. SELF-TEST 页面四态 + 真实接口联调
+13. CLEANUP  确认 mock 已清除、baseUrl 指向真实后端
+14. REPORT  <binding-compliance>
 ```
+
+> **步骤编号说明**：既有协议中步骤 1-5（RECEIVE / LOAD / LOAD / KNOWLEDGE / EXECUTE）保持原位不动，新增的 CONVERT 与 WIRE 分别插入在 VERIFY 前后。实施时以**文件实际内容**为准重新编号，不要直接套用本段编号。
 
 **F2. mock 存活期裁决**
 
