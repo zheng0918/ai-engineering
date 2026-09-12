@@ -225,6 +225,33 @@ startPhase >= 4   : 项目目录存在（代码已生成）
 
 ---
 
+## 产物落盘约定
+
+> 所有端级 agent 的产出**必须**落盘，不得仅在对话中返回。子代理上下文隔离，不落盘无法交接。
+
+统一落盘根路径：`{project.rootPath}/docs/`
+
+```
+{project.rootPath}/
+  ├── docs/
+  │   ├── data-model.md           Phase 1.5 产出
+  │   ├── pending-decisions.md    Phase 1.5 产出
+  │   ├── schema.sql              Phase 1.5 产出
+  │   ├── api-contract.md         Phase 2 产出
+  │   ├── prototype/              Phase 1 产出（走完整流程时）
+  │   └── reports/
+  │       ├── db-execution.md     Phase 2.5 产出
+  │       ├── compliance-{end}.md Phase 3 产出
+  │       └── integration.md      Phase 4 产出
+  ├── {backend dir}/
+  ├── {frontend dir}/
+  └── {miniProgram dir}/
+```
+
+**规则：** flow-orchestrator 在 POST-FLIGHT 中按上述路径读取产物核对，路径不存在即判 FAIL。
+
+---
+
 ## Phase 0: 项目发现 + 状态评估
 
 > **Phase 0 是流程的入口。** 用户只需提供项目根路径。Phase 0 不要求目录有固定名称——通过扫描每个子目录的内部文件内容自动识别项目类型。
@@ -508,20 +535,24 @@ Phase 0 完成后输出以下面板供用户确认：
 │  │ skill           │  │ skill           │  │ rule+skill      │         │
 │  │                 │  │                 │  │                 │         │
 │  │ PRE-FLIGHT      │  │ PRE-FLIGHT      │  │ PRE-FLIGHT      │         │
-│  │ → EXECUTE       │  │ → EXECUTE       │  │ → EXECUTE       │         │
-│  │ → BUILD (mvn)   │  │ → BUILD (npm)   │  │ → BUILD (cli)   │         │
-│  │ → MOCK (N/A)    │  │ → MOCK (契约mock)│  │                 │         │
-│  │ → SELF-TEST     │  │ → SELF-TEST     │  │ → CONTRACT      │         │
-│  │   (逐API+落库)   │  │   (页面四态+交互)│  │                 │         │
-│  │ → CLEANUP       │  │ → CLEANUP       │  │ → POST-FLIGHT   │         │
-│  │   (kill端口)     │  │   (去mock+回指)  │  │                 │         │
-│  │ → POST-FLIGHT   │  │ → POST-FLIGHT   │  │                 │         │
+│  │ → EXECUTE       │  │ → CONVERT ★     │  │ → CONVERT ★     │         │
+│  │   (契约驱动)     │  │   (html-to-admin)│  │ (html-to-miniapp)│        │
+│  │ → BUILD (mvn)   │  │ → WIRE ★        │  │ → WIRE ★        │         │
+│  │ → SELF-TEST     │  │   (契约API层     │  │   (契约API层     │         │
+│  │   (逐API+落库)   │  │    覆盖mock)     │  │    覆盖mock)     │         │
+│  │ → CLEANUP       │  │ → BUILD (npm)   │  │ → BUILD (cli)   │         │
+│  │   (kill端口)     │  │ → SELF-TEST     │  │ → CONTRACT      │         │
+│  │ → POST-FLIGHT   │  │   (页面四态+交互)│  │                 │         │
+│  │                 │  │ → CLEANUP       │  │ → POST-FLIGHT   │         │
+│  │                 │  │   (去mock+回指)  │  │                 │         │
+│  │                 │  │ → POST-FLIGHT   │  │                 │         │
 │  └────────────────┘  └────────────────┘  └────────────────┘          │
 │                                                                        │
 │  ⚠️ 三端并行，各自独立执行完整协议                                       │
 │  ⚠️ 后端含本机环境自启校验闭环（Maven三件套+逐API测试+落库验证）         │
 │  ⚠️ 前端含 Mock 自测闭环（mock生成→页面验证→清理→指向真实后端）          │
 │  ⚠️ 迭代修复仅在 Phase 3 内部（维度级，最多 3 轮）                      │
+│  ⚠️ 前端/小程序端为两步走：CONVERT（html-to-* 转换骨架）→ WIRE（契约 API 层覆盖转换期 mock）│
 └──────────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -613,6 +644,7 @@ Phase 0 完成后输出以下面板供用户确认：
 ```
 1. 解析端级 agent 输出:
    - Phase 1/3 agent 输出 <binding-compliance> 标记
+   - Phase 1.5 prototype-to-model 输出 <model-compliance> 标记
    - Phase 2 link-coder 输出 <contract-compliance> 标记
    - Phase 2.5 database 输出 <db-execution-report> 标记
    - Phase 4 integration-verifier 输出 <integration-report> 标记
@@ -621,9 +653,19 @@ Phase 0 完成后输出以下面板供用户确认：
 4. Phase 3 agent 额外检查:
    - Link 契约一致性（URL/Method/字段/分页/Token）
    - 后端自启校验结果（API 测试通过 / 数据落库正确 / 端口已清理）
-   - 前端 mock 清理状态（mock 已清除 / baseUrl 已指向真实后端）
+   - 前端/小程序 CONVERT 产物是否来自 html-to-*（而非手工编写页面）
+   - 转换期 mock（utils/mock.ts / utils/mock.js）在 WIRE 后是否已无残留引用
+   - 全部 mock 是否已清除 / baseUrl 是否已指向真实后端
 5. 全部匹配 → PASS
 6. 发现违规 → 提取违规项 → 构造修复指令 → 重新调度（下一轮）
+7. 核对产物落盘:
+   - 按「产物落盘约定」逐路径确认文件存在且非空
+   - Phase 1.5 → docs/data-model.md / pending-decisions.md / schema.sql
+   - Phase 2   → docs/api-contract.md
+   - 路径缺失或为空 → 判 FAIL
+8. 核对待确认项留痕:
+   - data-model.md 中置信度为 LOW 的字段，在生成代码中是否有 // TODO(decision-#N) 注释
+   - 缺失留痕 → 判 FAIL
 ```
 
 ### TERMINAL（结束时）
@@ -721,3 +763,7 @@ ROUND 3: 强制修复 + 最终裁定
 - ❌ **后端端口未清理（残留进程）**
 - ❌ **前端 mock 未清除（baseUrl 未指向真实后端）**
 - ❌ **在最终报告中报告 SUCCESS 但存在 BLOCKER 级 FAIL 项**
+- ❌ **Phase 1.5 未产出 data-model.md 即进入 Phase 2**
+- ❌ **pending-decisions.md 存在「状态 = 待确认」项时进入 Phase 2**
+- ❌ **字段标注为 LOW 置信度却在代码中静默采用默认值而不留 TODO 注释**
+- ❌ **跳过产物落盘（产出仅在对话中返回，未写入 docs/）**
