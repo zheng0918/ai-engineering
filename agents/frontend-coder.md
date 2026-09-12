@@ -24,12 +24,16 @@
 2. LOAD    读取指定维度的 rule 文件 → 提取核心约束
 3. LOAD    读取指定维度的 skill 文件 → 提取代码模板
 4. KNOWLEDGE 读取 knowledge/frontend/<dimension>.md → 查阅历史踩坑记录，避坑
-5. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成代码
-6. CONVERT ★ 调用 html-to-admin 技能，从原型转换页面骨架：
+5. CONVERT ★ 调用 html-to-admin 技能，从原型转换页面骨架：
    a. 输入：Phase 0 检测到的 admin 高保真原型路径
    b. 执行 skills/frontend/html-to-admin/SKILL.md 的转换流程
    c. 产出：页面 / 布局 / 路由 / 交互 + 转换期 mock（utils/mock.ts）
    d. 范围限定：本步骤只做 UI 骨架转换，**不实现 API 请求**
+6. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成代码
+   a. 范围界定：只生成 CONVERT 未覆盖的维度（API 层、状态管理、工具函数等）；
+      页面 / 布局 / 组件维度不在此重新生成
+   b. 归一化：CONVERT 产出的目录结构 / 命名 / 样式，按 rule 归一
+      （CONVERT 产出为页面主干，rule 决定其最终形态）
 7. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
 8. WIRE ★  按 Link 契约生成 API 层，**完全覆盖转换期 mock**：
    a. 依据契约的 URL/Method/Request/Response 生成 api/ 模块
@@ -133,7 +137,7 @@
 project:
   rootPath: ""              # 项目根路径（Phase 0 传入）
   dirName: "vitrine-admin"  # 前端子目录名（Phase 0 检测，非固定名称）
-  prototypePath: ""         # CONVERT 输入：Phase 0 检测到的 admin 高保真原型路径
+  prototypePath: ""         # CONVERT 输入：编排器 targets.frontend.prototypePath 传入的 admin 高保真原型路径
   name: "my-admin"
   port: 5173
 

@@ -128,11 +128,15 @@ targets:                              # Phase 0 检测 + 用户确认后填充
     mode: "generate"
     detected: false
     dirName: "vitrine-admin"
+    prototypePath: ""                 # CONVERT 输入（Phase 3 传入 frontend-coder）：Phase 0 由检测到的
+                                      # admin 原型填充；startPhase >= 1.5 时取 externalInputs.prototypeAdmin
   miniProgram:
     enabled: true
     mode: "generate"
     detected: false
     dirName: "vitrine-miniapp"
+    prototypePath: ""                 # CONVERT 输入（Phase 3 传入 mini-program-coder）：Phase 0 由检测到的
+                                      # miniapp 原型填充；startPhase >= 1.5 时取 externalInputs.prototypeMiniApp
 
 backend:
   basePackage: "com.example"          # 如有 SPEC-后端API规格.md 则从中提取
@@ -171,7 +175,7 @@ iteration:
   failFast: false                     # 单端 FAIL 是否阻断其他端
 
 # ====== 可插拔控制 ======
-startPhase: 0                         # 起始 Phase（0-5，默认 0 = 完整流程）
+startPhase: 0                         # 起始 Phase（0 / 1 / 1.5 / 2 / 2.5 / 3 / 4 / 5，默认 0 = 完整流程）
                                       # Phase 0 扫描后自动推荐，用户可覆盖
 externalInputs:                       # 跳过的 Phase 产物须由外部提供
   prototypeAdmin: ""                  # ★ Phase 1.5 输入：admin 高保真原型路径
@@ -204,7 +208,7 @@ externalInputs:                       # 跳过的 Phase 产物须由外部提供
 |---|---|---|---|
 | 0（默认） | 无 | 无（仅需 project.rootPath） | 完整流程 |
 | 1 | Phase 0 | 项目参数已手动确认 | 项目已人工扫描，直接开始设计 |
-| 2 | Phase 0-1 | `dataModel` | 数据模型已有（手工/第三方），只生成契约+代码 |
+| 2 | Phase 0-1.5 | `dataModel` | 数据模型已有（手工/第三方），只生成契约+代码 |
 | **1.5** | Phase 0-1 | `prototypeAdmin` + `prototypeMiniApp` | 原型已有，无 PRD，反推数据模型 |
 | 2.5 | Phase 0-2 | `dataModel` + `linkContract` | Link 契约已有，跳过反推与契约，只建库+编码 |
 | 3 | Phase 0-2.5 | `dataModel` + `linkContract` + 数据库已就绪 | DB 已建好，三端并行编码 |
@@ -328,7 +332,7 @@ Phase 0 完成后输出以下面板供用户确认：
 
 | 文档产物状况 | 推荐 startPhase | 说明 |
 |-------------|-----------------|------|
-| 无 PRD | 引导创建 PRD | 使用 prd-writer skill 先创建需求文档 |
+| 无 PRD 且无原型 | 引导创建 PRD | 使用 prd-writer skill 先创建需求文档 |
 | **有原型、无 PRD** | **1.5** | 原型驱动：反推数据模型 → 契约 → 编码 |
 | 有原型 + 数据模型 | 2 | 跳过反推，直接生成契约 |
 | 有原型 + 数据模型 + 契约 | 2.5 | 跳过反推与契约，只建库 + 编码 |
@@ -377,8 +381,8 @@ Phase 0 完成后输出以下面板供用户确认：
                                 │
                                 ▼
 ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
-  startPhase > 1 ? 跳过 Phase 1，读 externalInputs.{dataModel}
-  作为 Phase 2 输入
+  startPhase >= 1.5 ? 跳过 Phase 1
+  （Phase 1.5 自行产出数据模型；startPhase > 1.5 的读取见下游节点）
 └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
 ┌──────────────────────────────────────────────────────────────────────┐
 │ PHASE 1: 设计阶段（system-design + prototype 并行）                    │
@@ -476,7 +480,7 @@ Phase 0 完成后输出以下面板供用户确认：
 ┌──────────────────────────────────────────────────────────────────────┐
 │ PHASE 2: Link 契约层（编码前契约，非事后校验）                           │
 │                                                                        │
-│  link-coder 基于 Phase 1 设计产物，按 8 维度逐条生成:                    │
+│  link-coder 基于 Phase 1 或 Phase 1.5 的设计产物，按 8 维度逐条生成:     │
 │  • API 契约 (URL/Method/Request/Response)                             │
 │  • 分页对接 (pageNum/pageSize)                                        │
 │  • 数据格式 (Long→String / 日期 / 枚举)                                │
@@ -542,12 +546,12 @@ Phase 0 完成后输出以下面板供用户确认：
 │  │ → SELF-TEST     │  │   (契约API层     │  │   (契约API层     │         │
 │  │   (逐API+落库)   │  │    覆盖mock)     │  │    覆盖mock)     │         │
 │  │ → CLEANUP       │  │ → BUILD (npm)   │  │ → BUILD (cli)   │         │
+│  │                 │  │ → MOCK          │  │                 │         │
 │  │   (kill端口)     │  │ → SELF-TEST     │  │ → CONTRACT      │         │
 │  │ → POST-FLIGHT   │  │   (页面四态+交互)│  │                 │         │
 │  │                 │  │ → CLEANUP       │  │ → CLEANUP       │         │
 │  │                 │  │   (去mock+回指)  │  │   (去mock+回指)    │         │
 │  │                 │  │ → POST-FLIGHT   │  │ → POST-FLIGHT   │         │
-│  │                 │  │                 │  │                 │         │
 │  │                 │  │                 │  │                 │         │
 │  └────────────────┘  └────────────────┘  └────────────────┘          │
 │                                                                        │
@@ -556,6 +560,7 @@ Phase 0 完成后输出以下面板供用户确认：
 │  ⚠️ 前端含 Mock 自测闭环（mock生成→页面验证→清理→指向真实后端）          │
 │  ⚠️ 迭代修复仅在 Phase 3 内部（维度级，最多 3 轮）                      │
 │  ⚠️ 前端/小程序端为两步走：CONVERT（html-to-* 转换骨架）→ WIRE（契约 API 层覆盖转换期 mock）│
+│  ⚠️ CONVERT 原型路径经 targets.<end>.prototypePath 传给前端/小程序端     │
 └──────────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -598,8 +603,9 @@ Phase 0 完成后输出以下面板供用户确认：
 │  3. 全局禁止项扫描（JPA / @Select 注解 / System.out / var / any）       │
 │  4. 全局必须项检查（R<T> / Long→String / 审计列 / 四态 / scoped）       │
 │  5. 跨端一致性校验（Link 契约 vs 实际产出）                               │
-│  6. 全部 PASS → 输出 [SUCCESS] 完成报告                                  │
-│  7. 仍有 FAIL → 输出 [PARTIAL] 完成报告 + 未修复清单 + 手动修复建议       │
+│  6. 汇总 LOW 置信度字段与已确认的 pending-decisions                      │
+│  7. 全部 PASS → 输出 [SUCCESS] 完成报告                                  │
+│  8. 仍有 FAIL → 输出 [PARTIAL] 完成报告 + 未修复清单 + 手动修复建议       │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -651,7 +657,7 @@ Phase 0 完成后输出以下面板供用户确认：
 
 > **Phase 1 agent 例外：** system-design-coder 和 prototype-coder 跳过 PRE-FLIGHT。其 rule/skill 目录待建设，当前按各 agent 内部协议执行。仅需传入 PRD 路径即可调度。
 > **Phase 2.5 agent 例外：** database.md 不经过 PRE-FLIGHT。其调度指令直接包含 schema.sql 路径 + 数据库连接参数，按自身协议执行 CONNECT → CHECK → EXECUTE → VERIFY → REPORT。
-> **Phase 1.5 agent 例外：** prototype-to-model 不经过 PRE-FLIGHT。其 rule/skill 目录不存在，调度指令直接包含两份原型路径 + 产品基本信息，按自身协议执行 RECEIVE → PARSE → CROSS → EXTRACT → DERIVE → GAP → VERIFY → REPORT。
+> **Phase 1.5 agent 例外：** prototype-to-model 不经过 PRE-FLIGHT。其 rule/skill 目录不存在，调度指令直接包含两份原型路径 + 产品基本信息，按自身协议执行 RECEIVE → PARSE → CROSS → EXTRACT → DERIVE → GAP → VERIFY → REPORT。**仅有单份原型可用时，调度指令必须携带单源降级标记**（交叉验证覆盖率记 0% / 全部字段置信度不高于 MEDIUM / 全部字段进 pending-decisions.md），agent 按降级规则执行，不得据此判 FAIL。
 
 ### POST-FLIGHT（调度后）
 

@@ -25,7 +25,8 @@
 
 2. PARSE    分别解析两份原型：
    a. 静态盘点：标签统计 / 类名清单 / 颜色值 / 表单控件 / 表格结构
-      → 可调用 skills/frontend/html-to-admin/scripts/analyze_html.py
+      → admin 原型：skills/frontend/html-to-admin/scripts/analyze_html.py
+      → miniapp 原型：skills/miniProgram/html-to-miniapp/scripts/analyze_html.py
    b. 提取表格列头（<table> / <el-table> / 组件化列表的列定义）
    c. 提取表单字段与控件类型（<input type> / <el-select> / <el-date-picker> / ...）
    d. 提取详情页字段（<el-descriptions> / 定义列表 / 卡片字段）
@@ -79,6 +80,7 @@
 | 仅单端出现 | 按该端控件类型推定 | `MEDIUM` |
 | 仅从 mock 数据字面量推定 | 按字面量类型推定 | `MEDIUM` |
 | 纯推断（无任何直接证据） | 按命名约定推定 | `LOW` |
+| 两份原型无任何共现实体（零共现） | 交叉验证失效 → 告警，全部字段置信度**强制降为 `MEDIUM`**（不得更高），且全部字段强制进入 `pending-decisions.md` | `MEDIUM` |
 
 **统计要求**：第 0 节元信息中必须给出 `交叉验证覆盖率 = 两端共现字段数 / 字段总数`。覆盖率 < 60% 时在报告中告警并说明原因。
 
@@ -160,7 +162,7 @@
 
 > 每次产出后必须逐条自检。任何条目缺失必须立即补充。
 
-1. □ 是否已同时解析两份原型（而非只读其中一份）？
+1. □ 是否已解析两份原型？若仅有一份，是否已按单源降级规则处理（覆盖率记 0%、置信度不高于 MEDIUM、全部字段进 pending-decisions）？
 2. □ 是否已计算并填写交叉验证覆盖率？
 3. □ data-model.md 是否包含第 0~7 全部 8 节？
 4. □ 每个字段是否都标注了具体来源证据（非"推断"这类空泛描述）？
@@ -206,7 +208,7 @@
 
 ## 禁止事项
 
-- ❌ 只解析一份原型就产出结果
+- ❌ 只解析一份原型却未执行单源降级（覆盖率未记 0% / 置信度未降级 / 字段未全量进 pending-decisions）
 - ❌ 臆造业务规则（计价 / 库存 / 审批 / 事务）而不进 pending-decisions
 - ❌ 填写无来源证据的字段而不标注 `置信度 = LOW`
 - ❌ 独立编写 schema.sql（必须由 data-model.md 派生）
