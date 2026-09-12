@@ -32,7 +32,7 @@ const rulesDirIdx = args.indexOf('--rules-dir');
 const targetDirIdx = args.indexOf('--target');
 
 const specifiedEnd = endArgIdx >= 0 ? args[endArgIdx + 1] : null;
-const rulesDir = rulesDirIdx >= 0 ? args[rulesDirIdx + 1] : join(__dirname, 'rules-definitions');
+const rulesDir = rulesDirIdx >= 0 ? args[rulesDirIdx + 1] : join(__dirname, '..', 'rules-definitions');
 const targetDir = targetDirIdx >= 0 ? args[targetDirIdx + 1] : process.cwd();
 
 // ── Helper: safe regex constructor ──────────────────────────────────
@@ -76,16 +76,27 @@ function detectProjectType(root) {
 }
 
 // ── Rule loader ─────────────────────────────────────────────────────
+// A failed load is NOT an empty rule set: it means the end was never
+// scanned. Recorded here so main() can refuse to report a pass.
+const loadFailures = [];
+
 async function loadRules(end) {
   const ruleFile = join(rulesDir, end + '.mjs');
   if (!existsSync(ruleFile)) {
+    loadFailures.push({ end: end, reason: 'rules file not found: ' + ruleFile });
     console.error('Rules file not found: ' + ruleFile);
     return [];
   }
   try {
     const mod = await import('file://' + ruleFile.replace(/\\/g, '/'));
-    return mod.default || mod.rules || [];
+    const rules = mod.default || mod.rules || [];
+    if (!rules.length) {
+      loadFailures.push({ end: end, reason: 'rules file exports no rules: ' + ruleFile });
+      console.error('Rules file exports no rules: ' + ruleFile);
+    }
+    return rules;
   } catch (e) {
+    loadFailures.push({ end: end, reason: 'load error for ' + end + ': ' + e.message });
     console.error('Failed to load rules for', end + ':', e.message);
     return [];
   }
@@ -270,6 +281,19 @@ async function main() {
     for (var ri2 = 0; ri2 < results.length; ri2++) {
       allResults.push(results[ri2]);
     }
+  }
+
+  // A rule load failure means an entire end went unscanned. Reporting
+  // "no violations" there would be a false pass — refuse instead.
+  if (loadFailures.length > 0) {
+    console.error('');
+    console.error('✗ 规则加载失败 —— 本次扫描结果不可信，以下端未执行任何检查：');
+    for (var lf = 0; lf < loadFailures.length; lf++) {
+      console.error('    [' + loadFailures[lf].end + '] ' + loadFailures[lf].reason);
+    }
+    console.error('  当前 rulesDir: ' + rulesDir);
+    console.error('  （默认应为仓库根的 rules-definitions/，可用 --rules-dir 覆盖）');
+    process.exit(3);
   }
 
   var totalFailed = allResults.filter(function (r) { return !r.pass; }).length;

@@ -108,7 +108,7 @@ project:
         prototype: ""                # ❌ 缺失
         apiContract: ""              # ❌ 缺失
 
-environment:                          # ★ 本机运行时环境（Phase 0 时未填写则询问用户）
+environment:                          # ★ 本机运行时环境（Phase 0 自动探测填充，探测不到才询问）
   maven:
     home: ""                          # 如 E:\apache-maven-3.6.3
     settings: ""                      # 如 E:\apache-maven-3.6.3\conf\settings.xml
@@ -243,7 +243,7 @@ startPhase >= 4   : 项目目录存在（代码已生成）
   │   ├── pending-decisions.md    Phase 1.5 产出
   │   ├── schema.sql              Phase 1.5 产出
   │   ├── api-contract.md         Phase 2 产出
-  │   ├── prototype/              Phase 1 产出（走完整流程时）
+  │   ├── prototype/              Phase 1 参考素材 + 原型产出
   │   └── reports/
   │       ├── db-execution.md     Phase 2.5 产出
   │       ├── compliance-{end}.md Phase 3 产出
@@ -279,7 +279,7 @@ startPhase >= 4   : 项目目录存在（代码已生成）
 目录不存在 / 无 pom.xml → backend: mode=generate, detected=false  （待生成，需询问目录名）
 ```
 
-> **⚠️ 关键**：`mode=generate` 时 Phase 0 **必须**询问用户「待生成的 {端} 项目目录名是什么？」，不得因检测不到而将 `enabled` 置为 `false`。同理适用于 frontend（`package.json`）与 miniProgram（`manifest.json` / `pages.json`）。
+> **⚠️ 关键**：`mode=generate` 时 Phase 0 **先按命名约定推断默认目录名**（如 `{产品名}-server` / `{产品名}-admin` / `{产品名}-miniapp`），与状态面板一并展示供用户确认或覆盖；**仅在无法推断产品名时才询问**。不得因检测不到目录而将 `enabled` 置为 `false`。同理适用于 frontend（`package.json`）与 miniProgram（`manifest.json` / `pages.json`）。
 
 ### 文档产物检测
 
@@ -291,7 +291,7 @@ startPhase >= 4   : 项目目录存在（代码已生成）
 | 架构设计 | 文件名含 `architecture` / `架构设计` | Phase 1 产出 / Phase 2 输入 |
 | 详细设计 | 文件名含 `detailed-design` / `详细设计` | Phase 1 产出 / 参考 |
 | 数据库 DDL | 文件名含 `schema`，后缀 `.sql` | Phase 1 或 Phase 1.5 产出 / Phase 2.5 输入 |
-| 高保真原型 | `prototype/` 目录或文件名含 `prototype` | **Phase 1 产出 / Phase 1.5 输入** |
+| 原型参考素材 | `prototype/` 目录 | Phase 1 参考素材（仅传 PRD 时，prototype-coder 据此设计原型）+ prototype-coder 的原型产出目录 |
 | 数据模型 | 文件名含 `data-model` | Phase 1.5 产出 / Phase 2 输入（link-coder DERIVE） |
 | 待确认项 | 文件名含 `pending-decisions` | Phase 1.5 产出 / 门禁 #1 输入 |
 | API 契约 | 文件名含 `api-contract` / `契约` | Phase 2 产出 / Phase 3 输入 |
@@ -316,48 +316,64 @@ Phase 0 完成后输出以下面板供用户确认：
 │    ✅ 需求设计文档v1.md        (PRD)                  │
 │    ❌ architecture.md          (待 Phase 1 生成)      │
 │    ❌ detailed-design.md       (待 Phase 1 生成)      │
-│    ❌ schema.sql               (待 Phase 1 生成)      │
-│    ✅ prototype/admin.html     (已有原型 · 输入)      │
-│    ✅ prototype/miniapp.html   (已有原型 · 输入)      │
+│    ❌ schema.sql               (待 Phase 1.5 生成)   │
+│    ✅ prototype/               (原型参考素材)          │
 │    ❌ data-model.md            (待 Phase 1.5 生成)   │
 │    ❌ pending-decisions.md     (待 Phase 1.5 生成)   │
 │    ❌ api-contract.md          (待 Phase 2 生成)      │
 │    ✅ SPEC-项目参数.md          (参数来源)             │
 │                                                      │
-│ 📌 推荐起始 Phase: Phase 1（设计阶段）                 │
-│    确认无误后进入 Phase 1，或输入修正                  │
+│ 📄 外部传入 (externalInputs):                          │
+│    ✅ prototypeAdmin            admin 高保真原型       │
+│    ✅ prototypeMiniApp          miniapp 高保真原型     │
+│                                                      │
+│ 📌 推荐起始 Phase: Phase 1.5（原型驱动）               │
+│    确认无误后进入 Phase 1.5，或输入修正                │
 └──────────────────────────────────────────────────────┘
 ```
 
 ### 起始 Phase 推荐逻辑
 
-| 文档产物状况 | 推荐 startPhase | 说明 |
+| 产物 / 输入状况 | 推荐 startPhase | 说明 |
 |-------------|-----------------|------|
-| 无 PRD 且无原型 | 引导创建 PRD | 使用 prd-writer skill 先创建需求文档 |
-| **有原型、无 PRD** | **1.5** | 原型驱动：反推数据模型 → 契约 → 编码 |
-| 有原型 + 数据模型 | 2 | 跳过反推，直接生成契约 |
-| 有原型 + 数据模型 + 契约 | 2.5 | 跳过反推与契约，只建库 + 编码 |
+| PRD 与传入原型都没有 | 引导创建 PRD | 使用 prd-writer skill 先创建需求文档 |
+| **已传入原型（`externalInputs`）、无 PRD** | **1.5** | 原型驱动：反推数据模型 → 契约 → 编码 |
+| 已传入原型 + 有 `data-model.md` | 2 | 跳过反推，直接生成契约 |
+| 已传入原型 + `data-model.md` + `api-contract.md` | 2.5 | 跳过反推与契约，只建库 + 编码 |
 | 仅有 PRD | Phase 1 | 完整设计 → 契约 → 编码流程 |
 | 有 PRD + 全部设计产物 | Phase 2 | 跳过设计，从契约开始 |
 | 有 PRD + 设计 + 契约 | Phase 3 | 跳过设计+契约，直接编码 |
 | 有全部产物 + 代码 | Phase 4 | 代码已存在，进入验证 |
 
-### 本机环境参数确认
+> **判断依据**：「传入原型」指 `externalInputs.prototypeAdmin` / `prototypeMiniApp` 有值，**不是** `docs/prototype/` 目录存在与否 —— 后者只是 Phase 1 的参考素材。
 
-在 Phase 0 阶段询问用户本机运行时环境（人工配置门禁 #2 时进一步确认）：
+### 本机环境参数探测
+
+> **先探测，再确认 —— 不得直接抛给用户填写。** 下列参数绝大多数可由 agent 自行取得。探测成功即填入并与状态面板一并展示，用户只需确认或覆盖；**只有探测不到的才询问**。
+
+| 参数 | 探测方法 |
+|------|----------|
+| Maven home | `mvn -v` 输出中的 Maven home；或环境变量 `MAVEN_HOME` / `M2_HOME`；或 `where mvn` 反推安装目录 |
+| Maven settings | `~/.m2/settings.xml`（存在则优先用）；否则 `{maven.home}/conf/settings.xml` |
+| Maven repository | settings.xml 中的 `<localRepository>`；缺省则 `~/.m2/repository` |
+| Node 版本 | `node -v` |
+| 包管理器 | 目录下 `pnpm-lock.yaml` / `yarn.lock` / `package-lock.json` 判断；都没有则依次 `pnpm -v` / `yarn -v` / `npm -v` 试探可用者 |
+| 数据库类型与端口 | 探测 `localhost:5432`（PostgreSQL）/ `localhost:3306`（MySQL）是否有服务监听；或读取目标项目已有的 `application.yml` / `.env` |
+| 数据库库名/账号/密码 | **无法探测，必须询问** —— 这是唯一必须用户输入的项 |
+
+探测结果与状态面板一并展示：
 
 ```
-本机环境确认：
-  [Maven]    Home: __________ (如 E:\apache-maven-3.6.3)
-             settings.xml: __________
-             Repository: __________
-  [Node]     Version: __________ (如 18.17.0)
-             包管理器: [pnpm / npm / yarn]
-  [Database] Type: [PostgreSQL / MySQL]
-             Host: __________ Port: ____
-             Database: __________
-             User: __________ Password: __________
+本机环境（自动探测，可直接覆盖）：
+  [Maven]    Home: E:\apache-maven-3.6.3
+             settings.xml: C:\Users\xxx\.m2\settings.xml   (已找到)
+             Repository: E:\repository
+  [Node]     v18.17.0    包管理器: pnpm
+  [Database] 探测到 localhost:5432 有服务监听
+             → 库名 / 账号 / 密码 请提供
 ```
+
+> 探测失败的项在面板中标注 `(未探测到)`，再询问用户。
 
 ---
 
@@ -373,7 +389,7 @@ Phase 0 完成后输出以下面板供用户确认：
 │  3. 解析各项目关键信息（框架版本/中间件/依赖）                            │
 │  4. 扫描 docs/ 下产物清单（prd/架构/详细设计/schema/原型/契约）          │
 │  5. 输出项目状态面板（已存在/缺失产物 + 推荐起始 Phase）                  │
-│  6. 询问本机环境参数（Maven/Node/Database）                              │
+│  6. 探测本机环境参数（Maven/Node/Database），探测不到才询问              │
 │  7. 用户确认起始 Phase → 进入目标阶段                                    │
 │                                │                                       │
 │  startPhase ≥ 1 ──────────────┼──→ 跳过 Phase 0，直接进入目标 Phase     │
