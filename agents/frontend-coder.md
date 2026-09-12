@@ -25,19 +25,28 @@
 3. LOAD    读取指定维度的 skill 文件 → 提取代码模板
 4. KNOWLEDGE 读取 knowledge/frontend/<dimension>.md → 查阅历史踩坑记录，避坑
 5. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成代码
-6. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
-7. BUILD   使用指定 Node 版本执行构建
+6. CONVERT ★ 调用 html-to-admin 技能，从原型转换页面骨架：
+   a. 输入：Phase 0 检测到的 admin 高保真原型路径
+   b. 执行 skills/frontend/html-to-admin/SKILL.md 的转换流程
+   c. 产出：页面 / 布局 / 路由 / 交互 + 转换期 mock（utils/mock.ts）
+   d. 范围限定：本步骤只做 UI 骨架转换，**不实现 API 请求**
+7. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
+8. WIRE ★  按 Link 契约生成 API 层，**完全覆盖转换期 mock**：
+   a. 依据契约的 URL/Method/Request/Response 生成 api/ 模块
+   b. 将页面数据源从 utils/mock.ts 切换到真实 API 调用
+   c. 确认 utils/mock.ts 中不再被任何页面引用
+9. BUILD   使用指定 Node 版本执行构建
            → npm install + npm run build（或 pnpm build）
            → 无编译/类型错误则 PASS → FAIL 则修复后重检（最多 3 轮）
-8. MOCK    基于 Link 契约生成 mock 假数据：
+10. MOCK   基于 Link 契约生成 mock 假数据：
    a. 在 dev server 中注册 mock 拦截（使用 vite-plugin-mock 或等效方案）
    b. mock 数据字段名/类型/结构必须与契约 Response 定义精确对齐
    c. 分页接口 mock 返回 pageNum/pageSize/total/list 标准结构
    d. 错误场景 mock 返回对应 ErrorCode
-9. START   启动 dev server（npm run dev）
+11. START  启动 dev server（npm run dev）
            → 轮询等待 HTTP 200 响应
            → 超时（默认 30s）则报告 FAIL
-10. SELF-TEST 逐页面自测验证：
+12. SELF-TEST 逐页面自测验证：
     a. 访问页面 → 验证页面可正常加载（无白屏/console 无未捕获异常）
     b. 四态覆盖验证：
        → loading：列表/表格 loading 效果
@@ -48,14 +57,15 @@
     d. 搜索功能 → 输入关键词 → 验证 API 请求参数正确
     e. 弹窗交互 → 新增/编辑弹窗 → 验证表单校验规则
     f. 删除操作 → 确认弹窗 → 验证二次确认
-11. CLEANUP 清理 mock 环境：
-    a. kill 前端端口进程
+13. CLEANUP 清理 mock 环境：
+    a. 确认转换期 mock（utils/mock.ts）已完全移除，无残留引用
+    b. kill 前端端口进程
        → netstat -ano | findstr :{port} → taskkill /PID（Windows）
-    b. 清除 mock 假数据：移除 mock 文件/关闭 mock server
-    c. 将 API baseUrl 指回后端实际路径
+    c. 清除 mock 假数据：移除 mock 文件/关闭 mock server
+    d. 将 API baseUrl 指回后端实际路径
        → 恢复 .env.development 中 VITE_API_BASE_URL 为后端地址
        → 确认配置文件已更新
-12. REPORT  输出 <binding-compliance> 标记（含 mock 自测结果）
+14. REPORT  输出 <binding-compliance> 标记（含 mock 自测结果）
            → 交还 flow-orchestrator 校验
 ```
 
@@ -177,9 +187,11 @@ mock:
 12. □ npm build 是否通过（无编译/类型错误）？
 13. □ API 请求的 URL 和 Method 是否与 Link 契约一致？
 14. □ TypeScript 接口名、字段名、字段类型、必填/可选是否与 Link 契约一致？
-15. □ mock 数据是否基于 Link 契约生成（字段名/类型/结构与契约精确对齐）？
-16. □ mock 自测后前端端口是否已清理（确认进程已终止）？
-17. □ mock 数据是否已清除？API baseUrl 是否已指向真实后端地址（不再指向 mock server）？
+15. □ CONVERT 步骤是否已调用 html-to-admin（而非手工编写页面）？
+16. □ 转换期 mock 是否已被 API 层完全覆盖（utils/mock.ts 无残留引用）？
+17. □ 自测 mock 是否基于 Link 契约生成（字段名/类型/结构与契约精确对齐）？
+18. □ mock 自测后前端端口是否已清理（确认进程已终止）？
+19. □ 所有 mock 是否已清除？API baseUrl 是否已指向真实后端地址？
 
 ---
 

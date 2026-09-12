@@ -25,14 +25,25 @@
 3. LOAD    读取指定维度的 skill 文件 → 提取代码模板
 4. KNOWLEDGE 读取 knowledge/miniProgram/<dimension>.md → 查阅历史踩坑记录，避坑
 5. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成代码
-6. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
-7. BUILD   执行对应框架的编译命令（无编译错误则 PASS）
-8. CONTRACT 基于 Link 契约校验:
+6. CONVERT ★ 调用 html-to-miniapp 技能，从原型转换页面骨架：
+   a. 输入：Phase 0 检测到的 miniapp 高保真原型路径
+   b. 执行 skills/miniProgram/html-to-miniapp/SKILL.md 的转换流程
+   c. 产出：页面 / TabBar / 路由 / 交互 + 转换期 mock（utils/mock.js）
+   d. 范围限定：本步骤只做 UI 骨架转换，**不实现网络请求**
+7. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
+8. WIRE ★  按 Link 契约生成请求层，**完全覆盖转换期 mock**：
+   a. 依据契约的 URL/Method/Request/Response 生成 api/ 模块
+   b. 将页面数据源从 utils/mock.js 切换到真实请求调用
+   c. 确认 utils/mock.js 中不再被任何页面引用
+9. BUILD   执行对应框架的编译命令（无编译错误则 PASS）
+10. CONTRACT 基于 Link 契约校验:
     a. API 调用 URL/Method 与契约一致
     b. 分页参数 pageNum/pageSize 统一
     c. Token 键名统一为 "token"
     d. rpx 单位扫描、ref<any> 扫描
-9. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
+11. CLEANUP 确认转换期 mock（utils/mock.js）已完全移除、无残留引用
+            → 确认请求 baseUrl 已指向真实后端地址
+12. REPORT  输出 <binding-compliance> 标记（含 mock 清理结果）→ 交还 flow-orchestrator 校验
 ```
 
 ---
@@ -134,6 +145,10 @@ features:                       # 仅 enabled=true 时才加载对应 domain rul
 10. □ 核心页面是否实现 onShareAppMessage？
 11. □ 编译是否通过？
 12. □ API 调用 URL/Method 是否与 Link 契约一致？
+15. □ CONVERT 步骤是否已调用 html-to-miniapp（而非手工编写页面）？
+16. □ 转换期 mock 是否已被请求层完全覆盖（utils/mock.js 无残留引用）？
+17. □ 自测 mock 是否基于 Link 契约生成（字段名/类型/结构与契约精确对齐）？
+18. □ 所有 mock 是否已清除？请求 baseUrl 是否已指向真实后端地址？
 
 ### 框架专项
 
