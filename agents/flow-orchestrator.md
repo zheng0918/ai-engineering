@@ -39,7 +39,7 @@ flow-orchestrator (本文件)
   │     📎 产出: api-contract.md（三端唯一契约）
   │
   ├─ Phase 2.5 (建库) ─ 🔒 → database.md              远程执行 schema.sql
-  │     📎 输入: Phase 1 的 schema.sql；产出: 数据库表结构
+  │     📎 输入: Phase 1 或 Phase 1.5 的 schema.sql；产出: 数据库表结构
   │
   ├─ Phase 3 (编码) ─── 🔒 → backend-coder.md         18 组 rule+skill
   │                    🔒 → frontend-coder.md          19 组 rule+skill
@@ -68,7 +68,7 @@ flow-orchestrator (本文件)
 | 2.5★ | Prototype→Model | [prototype-to-model.md](prototype-to-model.md) | 1.5 | 检测到两份原型（startPhase ≤ 1.5） |
 | 3 | Link Contract | [link-coder.md](link-coder.md) | 2 | **Always** — Phase 2 强制执行 |
 | 4★ | Database Init | [database.md](database.md) | 2.5 | **Always** — Phase 2.5 强制执行（如有 schema.sql） |
-| 5 | Backend | [backend-coder.md](backend-coder.md) | 3 | Phase 0 检测到后端项目 |
+| 5 | Backend | [backend-coder.md](backend-coder.md) | 3 | targets.backend.enabled |
 | 6 | Frontend | [frontend-coder.md](frontend-coder.md) | 3 | targets.frontend.enabled。含 CONVERT（html-to-admin）+ 接后端两步 |
 | 7 | MiniProgram | [mini-program-coder.md](mini-program-coder.md) | 3 | targets.miniProgram.enabled。含 CONVERT（html-to-miniapp）+ 接后端两步 |
 | 8 | Integration Verifier | [integration-verifier.md](integration-verifier.md) | 4 | Backend + Frontend 两者均已启用 |
@@ -285,7 +285,7 @@ startPhase >= 4   : 项目目录存在（代码已生成）
 | PRD | 文件名含 `prd` / `需求` / `需求设计` | Phase 0 输入 |
 | 架构设计 | 文件名含 `architecture` / `架构设计` | Phase 1 产出 / Phase 2 输入 |
 | 详细设计 | 文件名含 `detailed-design` / `详细设计` | Phase 1 产出 / link-coder DERIVE |
-| 数据库 DDL | 文件名含 `schema`，后缀 `.sql` | Phase 1 产出 / Phase 2.5 输入 |
+| 数据库 DDL | 文件名含 `schema`，后缀 `.sql` | Phase 1 或 Phase 1.5 产出 / Phase 2.5 输入 |
 | 高保真原型 | `prototype/` 目录或文件名含 `prototype` | **Phase 1 产出 / Phase 1.5 输入** |
 | 数据模型 | 文件名含 `data-model` | Phase 1.5 产出 / Phase 2 输入 |
 | 待确认项 | 文件名含 `pending-decisions` | Phase 1.5 产出 / 门禁 #1 输入 |
@@ -377,8 +377,8 @@ Phase 0 完成后输出以下面板供用户确认：
                                 │
                                 ▼
 ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
-  startPhase > 1 ? 跳过 Phase 1，读 externalInputs.{systemDesign,
-  prototype} 作为 Phase 2 输入
+  startPhase > 1 ? 跳过 Phase 1，读 externalInputs.{dataModel}
+  作为 Phase 2 输入
 └ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
 ┌──────────────────────────────────────────────────────────────────────┐
 │ PHASE 1: 设计阶段（system-design + prototype 并行）                    │
@@ -402,8 +402,40 @@ Phase 0 完成后输出以下面板供用户确认：
 └──────────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
+┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+  startPhase > 1.5 ? 跳过 Phase 1.5，读 externalInputs.dataModel
+  作为 Phase 2 契约的输入
+└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ PHASE 1.5: 原型反推数据模型（★ 新增）                                   │
+│                                                                        │
+│  prototype-to-model 读两份原型，交叉验证:                               │
+│  1. PARSE  分别解析 admin / miniapp 原型（表格列头+表单控件+mock 数据）  │
+│  2. CROSS  同一字段两端比对 → 锁定类型（覆盖率必须统计）                  │
+│  3. EXTRACT 实体 / 字段 / 关系 / 接口 / 状态机 / 角色权限                │
+│  4. DERIVE  派生 schema.sql                                            │
+│  5. GAP    推不出的 → pending-decisions.md（不臆造）                    │
+│  6. VERIFY → REPORT <model-compliance>                                 │
+│                                                                        │
+│  输入: admin 原型 + miniapp 原型                                        │
+│  产出: docs/data-model.md, docs/pending-decisions.md, docs/schema.sql  │
+│                                                                        │
+│  ⚠️ 无 PRD 场景下数据模型的唯一来源                                      │
+│  ⚠️ 不经过 PRE-FLIGHT（rule/skill 不存在）                              │
+│                                                                        │
+│  按入口不同，Phase 1.5 的原型来源：                                    │
+│  • startPhase = 1.5（原型先行）：两份原型由                            │
+│    externalInputs.prototypeAdmin / prototypeMiniApp 提供               │
+│  • startPhase ≤ 1（完整流程）：Phase 1 的 prototype-coder 产出原型；其 │
+│    默认产出为单文件，若仅有一份，需用户补充另一份                      │
+│  • 只有单份原型时：允许单源模式运行，但 data-model.md 的交叉验证覆盖率 │
+│    记 0%，全部字段置信度不得高于 MEDIUM，且必须全部进入                │
+│    pending-decisions.md                                                │
+└──────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
 ┌────────────────────────────────────────────────────────────────────────┐
-│ 🛑 人工校验门禁 #1 — Phase 1 完成后必须人工确认                           │
+│ 🛑 人工校验门禁 #1 — Phase 1 / 1.5 完成后必须人工确认                     │
 │                                                                         │
 │  SystemDesign 审核:                                                     │
 │  □ 架构设计是否覆盖所有 Spec 涉及的端？                                  │
@@ -437,27 +469,6 @@ Phase 0 完成后输出以下面板供用户确认：
 └────────────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
-┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
-  startPhase > 1.5 ? 跳过 Phase 1.5，读 externalInputs.dataModel
-  作为 Phase 2 契约的输入
-└ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
-┌──────────────────────────────────────────────────────────────────────┐
-│ PHASE 1.5: 原型反推数据模型（★ 新增）                                   │
-│                                                                        │
-│  prototype-to-model 读两份原型，交叉验证:                               │
-│  1. PARSE  分别解析 admin / miniapp 原型（表格列头+表单控件+mock 数据）  │
-│  2. CROSS  同一字段两端比对 → 锁定类型（覆盖率必须统计）                  │
-│  3. EXTRACT 实体 / 字段 / 关系 / 接口 / 状态机 / 角色权限                │
-│  4. DERIVE  派生 schema.sql                                            │
-│  5. GAP    推不出的 → pending-decisions.md（不臆造）                    │
-│  6. VERIFY → REPORT <model-compliance>                                 │
-│                                                                        │
-│  输入: admin 原型 + miniapp 原型                                        │
-│  产出: docs/data-model.md, docs/pending-decisions.md, docs/schema.sql  │
-│                                                                        │
-│  ⚠️ 无 PRD 场景下数据模型的唯一来源                                      │
-│  ⚠️ 不经过 PRE-FLIGHT（rule/skill 不存在）                              │
-└──────────────────────────────────────────────────────────────────────┘
 ┌ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
   startPhase > 2 ? 跳过 Phase 2，读 externalInputs.linkContract
   作为 Phase 3 编码基准
@@ -503,7 +514,7 @@ Phase 0 完成后输出以下面板供用户确认：
 ┌──────────────────────────────────────────────────────────────────────┐
 │ PHASE 2.5: 数据库初始化（★ 新增）                                       │
 │                                                                        │
-│  database 基于 Phase 1 的 schema.sql:                                   │
+│  database 基于 Phase 1 或 Phase 1.5 的 schema.sql:                       │
 │  1. 连接远程数据库（psql/JDBC）                                          │
 │  2. 检查目标库已有表 → 与 schema.sql diff                                │
 │  3. 存在同名表 → 询问用户（覆盖/跳过/迁移/取消）                          │
