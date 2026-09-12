@@ -12,7 +12,7 @@
 
 1. **rule 不是建议，是法律。** 端级 agent 声明的每个 rule 必须全部满足，不得部分执行。
 2. **skill 不是参考，是唯一模板。** 生成代码必须使用 skill 模板，不得自创变体。
-3. **agent 间调用必须有校验。** 子 agent 返回结果后，父 agent 必须逐条校验 rule 合规性。
+3. **agent 间调用必须有校验。** 子 agent 返回结果后，父 agent 必须逐条核对其完成标记（`<binding-compliance>` 等）与实际产出。
 4. **不通过则重试。** 校验 FAIL 时自动修复并重新校验，最多 3 轮。
 5. **3 轮仍 FAIL 则上报。** 不得静默跳过或降级处理。
 
@@ -54,7 +54,7 @@ flow-orchestrator (本文件)
   └─ Phase 5 (门禁) ─── 汇总合规报告 + 禁止项扫描 + 跨端一致性校验
 ```
 
-**符号说明：** `🔒` 表示"绝对绑定"——调用端级 agent 时必须将其声明的所有 rule 和 skill 的约束内联传递，agent 不得以"我不知道"或"我选择了忽略"为由跳过。
+**符号说明：** `🔒` 表示"绝对绑定"——端级 agent 必须执行其声明维度的全部 rule 和 skill，不得以"我不知道"或"我选择了忽略"为由跳过。**编排器不代读这些文件**，由 agent 按自身协议的 LOAD 步骤加载。
 
 ---
 
@@ -402,7 +402,7 @@ Phase 0 完成后输出以下面板供用户确认：
 │        state-machines.md, deployment.md                               │
 │        prototype/index.html, mock.js, tokens.css, blueprint.md        │
 │                                                                        │
-│  ⚠️ Phase 1 agent 跳过 PRE-FLIGHT（rule/skill 待建设）                 │
+│  ⚠️ Phase 1 agent 按自身协议执行（rule/skill 待建设）                   │
 │  ⚠️ 两个 agent 并行执行，互不依赖                                       │
 └──────────────────────────────────────────────────────────────────────┘
                                 │
@@ -426,7 +426,7 @@ Phase 0 完成后输出以下面板供用户确认：
 │  产出: docs/data-model.md, docs/pending-decisions.md, docs/schema.sql  │
 │                                                                        │
 │  ⚠️ 无 PRD 场景下数据模型的唯一来源                                      │
-│  ⚠️ 不经过 PRE-FLIGHT（rule/skill 不存在）                              │
+│  ⚠️ 无 rule/skill，按自身协议执行                                      │
 │                                                                        │
 │  按入口不同，Phase 1.5 的原型来源：                                    │
 │  • startPhase = 1.5（原型先行）：两份原型由                            │
@@ -494,7 +494,7 @@ Phase 0 完成后输出以下面板供用户确认：
 │  ★ 新增 DERIVE 步骤：从 data-model.md 提取实体字段类型 →               │
 │    推导类型匹配的示例值（非随意占位符）                                   │
 │                                                                        │
-│  PRE-FLIGHT → EXECUTE → POST-FLIGHT                                   │
+│  EXECUTE             → POST-FLIGHT                                     │
 │  产出: api-contract.md（三端并行编码的唯一依据）                         │
 └──────────────────────────────────────────────────────────────────────┘
                                 │
@@ -540,7 +540,6 @@ Phase 0 完成后输出以下面板供用户确认：
 │  │ 18 维度 rule+   │  │ 19 维度 rule+   │  │ 13+16 维度      │         │
 │  │ skill           │  │ skill           │  │ rule+skill      │         │
 │  │                 │  │                 │  │                 │         │
-│  │ PRE-FLIGHT      │  │ PRE-FLIGHT      │  │ PRE-FLIGHT      │         │
 │  │ → EXECUTE       │  │ → CONVERT ★     │  │ → CONVERT ★     │         │
 │  │   (契约驱动)     │  │   (html-to-admin)│  │ (html-to-miniapp)│        │
 │  │ → BUILD (mvn)   │  │ → WIRE ★        │  │ → WIRE ★        │         │
@@ -625,40 +624,28 @@ Phase 0 完成后输出以下面板供用户确认：
 
 ## 强绑定执行协议（DETAILED）
 
-### PRE-FLIGHT（调度前）
+### 调度（调度前）
+
+> **编排器只构造并发送调度指令，不读取端级 agent 的 rule / skill / knowledge 文件。** 各 agent 按自身协议的 LOAD 步骤自行加载其维度对应的 rule、skill 与 knowledge —— 编排器只告诉它「做哪些维度」。
+
+调度指令包含：
 
 ```
-1. READ 端级 agent.md → 确认角色画像 + rule/skill 绑定表
-2. 确定本次需要调度的维度列表
-3. 对每个维度：
-   a. READ rules/<domain>/<dimension>.md → 提取核心约束
-   b. READ skills/<domain>/<dimension>.md → 提取代码模板
-   c. READ knowledge/<domain>/<dimension>.md → 提取历史踩坑记录与已知方案
-   d. 构造调度指令：
-      """
-      [端级 agent]，以下是你的绝对约束（不可跳过、不可降级）：
-
-      ## 绑定规则（违反任何一条 = 任务失败）
-      {逐条列出 rule 的核心约束}
-
-      ## 绑定技能（必须使用以下模板，不得自创变体）
-      {列出 skill 的模板}
-
-      ## 知识库参考（历史踩坑记录，生成前必须查阅）
-      {列出 knowledge/<domain>/<dimension>.md 的关键条目}
-
-      ## Link 契约（Phase 3 agent 必须遵守）
-      {Phase 2 产出的 api-contract.md 内容}
-
-      执行完成后，你必须输出 <binding-compliance> 标记，
-      逐条确认你是否遵守了以上所有规则。
-      """
-4. 将调度指令发送给端级 agent
+1. 目标维度列表       本次需要该 agent 执行的维度
+2. 项目路径           project.rootPath + 该端目录名
+3. Link 契约路径      {project.rootPath}/docs/api-contract.md（Phase 3 agent 必传）
+4. 本机环境参数       见「项目参数」中的 environment / backend / frontend / miniProgram
 ```
 
-> **Phase 1 agent 例外：** system-design-coder 和 prototype-coder 跳过 PRE-FLIGHT。其 rule/skill 目录待建设，当前按各 agent 内部协议执行。仅需传入 PRD 路径即可调度。
-> **Phase 2.5 agent 例外：** database.md 不经过 PRE-FLIGHT。其调度指令直接包含 schema.sql 路径 + 数据库连接参数，按自身协议执行 CONNECT → CHECK → EXECUTE → VERIFY → REPORT。
-> **Phase 1.5 agent 例外：** prototype-to-model 不经过 PRE-FLIGHT。其 rule/skill 目录不存在，调度指令直接包含两份原型路径 + 产品基本信息，按自身协议执行 RECEIVE → PARSE → CROSS → EXTRACT → DERIVE → GAP → VERIFY → REPORT。**仅有单份原型可用时，调度指令必须携带单源降级标记**（交叉验证覆盖率记 0% / 全部字段置信度不高于 MEDIUM / 全部字段进 pending-decisions.md），agent 按降级规则执行，不得据此判 FAIL。
+各 Phase 的额外传递项：
+
+| Phase | Agent | 额外传递 |
+|---|---|---|
+| 1 | system-design-coder / prototype-coder | PRD 路径（rule/skill 待建设，按各自协议执行） |
+| 1.5 | prototype-to-model | 两份原型路径 + 产品基本信息。**仅有单份原型时，必须携带单源降级标记**（交叉验证覆盖率记 0% / 全部字段置信度不高于 MEDIUM / 全部字段进 pending-decisions.md），agent 按降级规则执行，不得据此判 FAIL |
+| 2.5 | database | schema.sql 路径 + 数据库连接参数 + onConflict 策略 |
+
+> 执行完成后，各 agent 必须输出其完成标记（`<binding-compliance>` / `<model-compliance>` / `<contract-compliance>` / `<db-execution-report>` / `<integration-report>`），交还编排器校验。
 
 ### POST-FLIGHT（调度后）
 
@@ -669,7 +656,7 @@ Phase 0 完成后输出以下面板供用户确认：
    - Phase 2 link-coder 输出 <contract-compliance> 标记
    - Phase 2.5 database 输出 <db-execution-report> 标记
    - Phase 4 integration-verifier 输出 <integration-report> 标记
-2. 逐条对照 rule 约束检查代码输出（Phase 1/2 仅检查文档完整性，不检查代码）
+2. 逐条核对子 agent 完成标记中声明的检查项与实际产出（Phase 1/2 仅检查文档完整性，不检查代码）
 3. 扫描禁止关键字（JPA / System.out / @Select 注解 / any 类型 / var 声明等）
 4. Phase 3 agent 额外检查:
    - Link 契约一致性（URL/Method/字段/分页/Token）
@@ -767,7 +754,7 @@ ROUND 3: 强制修复 + 最终裁定
 
 ## 禁止事项（根级）
 
-- ❌ 跳过 PRE-FLIGHT（不加载 rule+skill 直接调度端级 agent）
+- ❌ 端级 agent 未加载其维度对应的 rule/skill/knowledge 即开始生成
 - ❌ 跳过 POST-FLIGHT（不校验就声称完成）
 - ❌ 端级 agent 返回 FAIL 但根 agent 报告 PASS
 - ❌ 3 轮修复后静默降级为 PASS
