@@ -66,7 +66,7 @@
 
 ```yaml
 database:
-  sqlPath: ""               # schema.sql 路径（Phase 1 system-design-coder 产出）
+  sqlPath: ""               # schema.sql 路径（Phase 1 或 Phase 1.5 产出）
   dbType: "postgresql"      # postgresql / mysql
   host: ""                  # 如 localhost / 192.168.1.100
   port: 5432                # 5432 (pg) / 3306 (mysql)

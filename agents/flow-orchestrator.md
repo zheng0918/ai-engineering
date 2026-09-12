@@ -209,7 +209,7 @@ externalInputs:                       # 跳过的 Phase 产物须由外部提供
 | 0（默认） | 无 | 无（仅需 project.rootPath） | 完整流程 |
 | 1 | Phase 0 | 项目参数已手动确认 | 项目已人工扫描，直接开始设计 |
 | 2 | Phase 0-1.5 | `dataModel` | 数据模型已有（手工/第三方），只生成契约+代码 |
-| **1.5** | Phase 0-1 | `prototypeAdmin` + `prototypeMiniApp` | 原型已有，无 PRD，反推数据模型 |
+| **1.5** | Phase 0-1 | `prototypeAdmin` 或 `prototypeMiniApp`（至少一份） | 原型已有，无 PRD，反推数据模型 |
 | 2.5 | Phase 0-2 | `dataModel` + `linkContract` | Link 契约已有，跳过反推与契约，只建库+编码 |
 | 3 | Phase 0-2.5 | `dataModel` + `linkContract` + 数据库已就绪 | DB 已建好，三端并行编码 |
 | 4 | Phase 0-3 | 以上全部 + 代码已生成 | 代码修 bug 后只重新跑集成验证 |
@@ -219,7 +219,8 @@ externalInputs:                       # 跳过的 Phase 产物须由外部提供
 
 ```
 startPhase >= 1   : project.rootPath 非空
-startPhase >= 1.5 : externalInputs.prototypeAdmin + prototypeMiniApp 非空且文件存在
+startPhase >= 1.5 : externalInputs.prototypeAdmin 或 prototypeMiniApp 至少一个非空且文件存在
+                    （两份齐全 → 交叉验证模式；仅一份 → 单源降级模式，见 Phase 1.5）
 startPhase >= 2   : externalInputs.dataModel 非空 + 文件存在
 startPhase >= 2.5 : externalInputs.linkContract 非空 + 文件存在
 startPhase >= 2.5 : 数据库已就绪（Phase 2.5 已完成 或 schema.sql 可执行）

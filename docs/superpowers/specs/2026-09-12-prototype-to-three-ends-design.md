@@ -318,13 +318,17 @@ externalInputs:
 1. RECEIVE  接收调度指令（契约 + 本机环境 + 原型路径）
 2. LOAD     rule / skill
 3. KNOWLEDGE knowledge/
-   ── 以下为在既有协议上的插入点（既有步骤 1-5 保持不变）──
-6. CONVERT  ★ 新增：调用 html-to-admin / html-to-miniapp，
+   ── 以下为在既有协议上的改动点 ──
+5. CONVERT  ★ 新增：调用 html-to-admin / html-to-miniapp，
             从原型转换出页面骨架（UI / 布局 / 路由 / 交互）
             产出：{end} 项目 + 转换期 mock 数据
+6. EXECUTE  ★ 新增范围界定：只生成 CONVERT 未覆盖的维度
+            （API 层 / 状态管理 / 工具函数等），页面 / 布局 / 组件
+            维度不在此重新生成；CONVERT 产出的目录结构 / 命名 / 样式
+            按 rule 归一
 7. VERIFY   对照 rule 逐条自检
 8. WIRE     ★ 新增：按 Link 契约生成 API 层，覆盖转换期 mock
-            （命名为 WIRE 而非 EXECUTE —— 既有步骤 5 已占用 EXECUTE）
+            （命名为 WIRE 以区别于 EXECUTE —— EXECUTE 为第 6 步的通用生成）
 9. BUILD    构建
 10. MOCK    自测 mock
 11. START   启动 dev server
@@ -333,7 +337,9 @@ externalInputs:
 14. REPORT  <binding-compliance>
 ```
 
-> **步骤编号说明**：既有协议中步骤 1-5（RECEIVE / LOAD / LOAD / KNOWLEDGE / EXECUTE）保持原位不动，新增的 CONVERT 与 WIRE 分别插入在 VERIFY 前后。实施时以**文件实际内容**为准重新编号，不要直接套用本段编号。
+> **步骤编号说明**：既有步骤 1-4（RECEIVE / LOAD / LOAD / KNOWLEDGE）保持原位不动；原第 5 步 EXECUTE 与新增的 CONVERT **互换位置**——CONVERT 提为第 5 步，EXECUTE 降为第 6 步并增加「范围界定 + 归一化」两条子项（步骤总数不变），WIRE 插入在 VERIFY 之后。实施时以**文件实际内容**为准重新编号，不要直接套用本段编号。
+>
+> **⚠️ 最终评审改动（本分支收尾）**：F1 原稿把 CONVERT 排在 EXECUTE 之后（EXECUTE 先手工生成页面 → CONVERT 再从原型转换），与自检「CONVERT 步骤是否已调用 html-to-*（而非手工编写页面）」直接冲突；且 `skills/frontend/html-to-admin/SKILL.md` 阶段 5 的 `npm create vite@latest` 会在 EXECUTE 刚建好的项目目录上失败。故最终评审裁定**交换这两步**（CONVERT 第 5 步、EXECUTE 第 6 步），保持步骤总数与其余步骤编号不变。原稿「既有步骤 1-5 保持原位不动」一句即该缺陷的根因，已随之作废。
 
 **F2. mock 存活期裁决**
 
