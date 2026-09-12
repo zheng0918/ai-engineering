@@ -133,6 +133,7 @@
 project:
   rootPath: ""              # 项目根路径（Phase 0 传入）
   dirName: "vitrine-admin"  # 前端子目录名（Phase 0 检测，非固定名称）
+  prototypePath: ""         # CONVERT 输入：Phase 0 检测到的 admin 高保真原型路径
   name: "my-admin"
   port: 5173
 

@@ -284,10 +284,10 @@ startPhase >= 4   : 项目目录存在（代码已生成）
 |--------|----------|------------|
 | PRD | 文件名含 `prd` / `需求` / `需求设计` | Phase 0 输入 |
 | 架构设计 | 文件名含 `architecture` / `架构设计` | Phase 1 产出 / Phase 2 输入 |
-| 详细设计 | 文件名含 `detailed-design` / `详细设计` | Phase 1 产出 / link-coder DERIVE |
+| 详细设计 | 文件名含 `detailed-design` / `详细设计` | Phase 1 产出 / 参考 |
 | 数据库 DDL | 文件名含 `schema`，后缀 `.sql` | Phase 1 或 Phase 1.5 产出 / Phase 2.5 输入 |
 | 高保真原型 | `prototype/` 目录或文件名含 `prototype` | **Phase 1 产出 / Phase 1.5 输入** |
-| 数据模型 | 文件名含 `data-model` | Phase 1.5 产出 / Phase 2 输入 |
+| 数据模型 | 文件名含 `data-model` | Phase 1.5 产出 / Phase 2 输入（link-coder DERIVE） |
 | 待确认项 | 文件名含 `pending-decisions` | Phase 1.5 产出 / 门禁 #1 输入 |
 | API 契约 | 文件名含 `api-contract` / `契约` | Phase 2 产出 / Phase 3 输入 |
 | 各端规格 | 文件名含 `SPEC-` | 辅助各端编码参数提取 |
@@ -486,7 +486,7 @@ Phase 0 完成后输出以下面板供用户确认：
 │  • 类型同步 (后端 VO/DTO → TS 类型)                                    │
 │  • 状态映射 (四态 + 异常态)                                            │
 │                                                                        │
-│  ★ 新增 DERIVE 步骤：从 detailed-design.md 提取 DB 字段类型 →          │
+│  ★ 新增 DERIVE 步骤：从 data-model.md 提取实体字段类型 →               │
 │    推导类型匹配的示例值（非随意占位符）                                   │
 │                                                                        │
 │  PRE-FLIGHT → EXECUTE → POST-FLIGHT                                   │
@@ -544,9 +544,11 @@ Phase 0 完成后输出以下面板供用户确认：
 │  │ → CLEANUP       │  │ → BUILD (npm)   │  │ → BUILD (cli)   │         │
 │  │   (kill端口)     │  │ → SELF-TEST     │  │ → CONTRACT      │         │
 │  │ → POST-FLIGHT   │  │   (页面四态+交互)│  │                 │         │
-│  │                 │  │ → CLEANUP       │  │ → POST-FLIGHT   │         │
-│  │                 │  │   (去mock+回指)  │  │                 │         │
-│  │                 │  │ → POST-FLIGHT   │  │                 │         │
+│  │                 │  │ → CLEANUP       │  │ → CLEANUP       │         │
+│  │                 │  │   (去mock+回指)  │  │   (去mock+回指)    │         │
+│  │                 │  │ → POST-FLIGHT   │  │ → POST-FLIGHT   │         │
+│  │                 │  │                 │  │                 │         │
+│  │                 │  │                 │  │                 │         │
 │  └────────────────┘  └────────────────┘  └────────────────┘          │
 │                                                                        │
 │  ⚠️ 三端并行，各自独立执行完整协议                                       │

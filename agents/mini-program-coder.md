@@ -112,6 +112,9 @@ target:
   language: "javascript"        # JS(native) | TS(uniapp/taro)
   style: "wxss"                 # wxss(native) | scss(uniapp/taro)
 
+prototype:
+  path: ""                      # CONVERT 输入：Phase 0 检测到的 miniapp 高保真原型路径
+
 design:
   iconStrategy: "lucide-png"    # lucide-png | lucide-base64 | css-shapes
   themeColors:
@@ -145,10 +148,9 @@ features:                       # 仅 enabled=true 时才加载对应 domain rul
 10. □ 核心页面是否实现 onShareAppMessage？
 11. □ 编译是否通过？
 12. □ API 调用 URL/Method 是否与 Link 契约一致？
-15. □ CONVERT 步骤是否已调用 html-to-miniapp（而非手工编写页面）？
-16. □ 转换期 mock 是否已被请求层完全覆盖（utils/mock.js 无残留引用）？
-17. □ 自测 mock 是否基于 Link 契约生成（字段名/类型/结构与契约精确对齐）？
-18. □ 所有 mock 是否已清除？请求 baseUrl 是否已指向真实后端地址？
+13. □ CONVERT 步骤是否已调用 html-to-miniapp（而非手工编写页面）？
+14. □ 转换期 mock 是否已被请求层完全覆盖（utils/mock.js 无残留引用）？
+15. □ 所有 mock 是否已清除？请求 baseUrl 是否已指向真实后端地址？
 
 ### 框架专项
 
