@@ -20,20 +20,43 @@
 ## 执行协议
 
 ```
-1. RECEIVE 接收 flow-orchestrator 的调度指令（含指定维度 + 输入上下文 + Link 契约：URL/Method、TypeScript 类型、pageNum/pageSize、token key）
+1. RECEIVE 接收 flow-orchestrator 的调度指令（含指定维度 + 输入上下文 + Link 契约 + 本机环境参数）
 2. LOAD    读取指定维度的 rule 文件 → 提取核心约束
 3. LOAD    读取指定维度的 skill 文件 → 提取代码模板
 4. KNOWLEDGE 读取 knowledge/frontend/<dimension>.md → 查阅历史踩坑记录，避坑
 5. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成代码
 6. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
-7. BUILD   npm build 构建产物，确保无编译/类型错误 → FAIL 则修复后重检（最多 3 轮）
-8. CONTRACT 验证 Link 契约一致性：
-              URL/Method 与契约匹配
-              TypeScript 类型定义与契约匹配（接口名、字段名、字段类型、必填/可选）
-              pageNum/pageSize 参数名、默认值与契约一致
-              token key（请求头/存储 key）与契约一致
-              → FAIL 则修复后重检（最多 3 轮）
-9. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
+7. BUILD   使用指定 Node 版本执行构建
+           → npm install + npm run build（或 pnpm build）
+           → 无编译/类型错误则 PASS → FAIL 则修复后重检（最多 3 轮）
+8. MOCK    基于 Link 契约生成 mock 假数据：
+   a. 在 dev server 中注册 mock 拦截（使用 vite-plugin-mock 或等效方案）
+   b. mock 数据字段名/类型/结构必须与契约 Response 定义精确对齐
+   c. 分页接口 mock 返回 pageNum/pageSize/total/list 标准结构
+   d. 错误场景 mock 返回对应 ErrorCode
+9. START   启动 dev server（npm run dev）
+           → 轮询等待 HTTP 200 响应
+           → 超时（默认 30s）则报告 FAIL
+10. SELF-TEST 逐页面自测验证：
+    a. 访问页面 → 验证页面可正常加载（无白屏/console 无未捕获异常）
+    b. 四态覆盖验证：
+       → loading：列表/表格 loading 效果
+       → error：模拟 API 失败 → 显示错误提示+重试按钮
+       → empty：空数据 → 显示空状态（图标+"暂无数据"）
+       → normal：正常数据 → 列表正确渲染
+    c. 列表渲染 → 验证数据字段展示、分页组件工作
+    d. 搜索功能 → 输入关键词 → 验证 API 请求参数正确
+    e. 弹窗交互 → 新增/编辑弹窗 → 验证表单校验规则
+    f. 删除操作 → 确认弹窗 → 验证二次确认
+11. CLEANUP 清理 mock 环境：
+    a. kill 前端端口进程
+       → netstat -ano | findstr :{port} → taskkill /PID（Windows）
+    b. 清除 mock 假数据：移除 mock 文件/关闭 mock server
+    c. 将 API baseUrl 指回后端实际路径
+       → 恢复 .env.development 中 VITE_API_BASE_URL 为后端地址
+       → 确认配置文件已更新
+12. REPORT  输出 <binding-compliance> 标记（含 mock 自测结果）
+           → 交还 flow-orchestrator 校验
 ```
 
 ---
@@ -98,19 +121,30 @@
 
 ```yaml
 project:
+  rootPath: ""              # 项目根路径（Phase 0 传入）
+  dirName: "vitrine-admin"  # 前端子目录名（Phase 0 检测，非固定名称）
   name: "my-admin"
   port: 5173
 
+# ★ 本机运行时环境（Phase 0 确认后传入）
+node:
+  version: ""               # 如 18.17.0
+  packageManager: "pnpm"    # pnpm / npm / yarn
+
 tech:
-  framework: "vue3"           # vue3 / react
-  uiLibrary: "element-plus"   # element-plus(vue) / antd(react)
-  stateManager: "pinia"       # pinia(vue) / zustand(react)
-  packageManager: "pnpm"
+  framework: "vue3"         # vue3 / react
+  uiLibrary: "element-plus" # element-plus(vue) / antd(react)
+  stateManager: "pinia"     # pinia(vue) / zustand(react)
 
 api:
   baseUrl:
     dev: "http://localhost:8200"
     prod: "https://api.example.com"
+    # ★ mock 自测时为 mock server 地址，CLEANUP 后恢复为 dev 地址
+
+mock:
+  enabled: true             # 自测阶段启用 mock
+  cleanupAfterTest: true    # 测试完毕后必须清理
 ```
 
 ---
@@ -143,6 +177,9 @@ api:
 12. □ npm build 是否通过（无编译/类型错误）？
 13. □ API 请求的 URL 和 Method 是否与 Link 契约一致？
 14. □ TypeScript 接口名、字段名、字段类型、必填/可选是否与 Link 契约一致？
+15. □ mock 数据是否基于 Link 契约生成（字段名/类型/结构与契约精确对齐）？
+16. □ mock 自测后前端端口是否已清理（确认进程已终止）？
+17. □ mock 数据是否已清除？API baseUrl 是否已指向真实后端地址（不再指向 mock server）？
 
 ---
 

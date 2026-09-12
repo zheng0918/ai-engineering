@@ -20,16 +20,43 @@
 ## 执行协议
 
 ```
-1. RECEIVE 接收 flow-orchestrator 的调度指令（含指定维度 + 输入上下文 + Link 契约）
+1. RECEIVE 接收 flow-orchestrator 的调度指令（含指定维度 + 输入上下文 + Link 契约 + 本机环境参数）
 2. LOAD    读取指定维度的 rule 文件 → 提取核心约束
 3. LOAD    读取指定维度的 skill 文件 → 提取代码模板
 4. KNOWLEDGE 读取 knowledge/backend/<dimension>.md → 查阅历史踩坑记录，避坑
 5. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成代码
 6. VERIFY  对照 rule 逐条自检 → PASS 则输出，FAIL 则修复后重检（最多 3 轮）
-7. BUILD   执行 mvn compile → 无编译错误则 PASS
-8. START   执行 mvn spring-boot:run → 轮询等待 /actuator/health 就绪
-9. CONTRACT 基于 Link 契约逐接口发送 HTTP 请求 → 校验响应码/响应体/数据落库
-10. REPORT  输出 <binding-compliance> 标记 → 交还 flow-orchestrator 校验
+7. BUILD   使用指定的 Maven home + settings.xml 执行编译
+           → mvn compile -s {settings.xml}（如有）
+           → 无编译错误则 PASS
+8. START   使用指定 settings.xml + repository 启动 spring-boot
+           → mvn spring-boot:run -s {settings.xml}（如有）
+           → 轮询等待 /actuator/health 返回 UP
+           → 超时（默认 60s）则报告 FAIL
+9. SELF-TEST  基于 Link 契约逐接口自测：
+   a. 构造请求：基于契约文档入参示例值填充
+   b. 发送 HTTP 请求（使用 curl 或等效工具）
+   c. 校验响应：
+      → 正常请求返回 code=0
+      → 异常请求返回对应错误码（与契约 ErrorCode 映射一致）
+      → Response JSON 字段名/层级/类型与契约 Response 定义一致
+      → Long 类型 ID 在 JSON 中序列化为字符串
+      → 日期格式符合 @JsonFormat 声明
+      → 分页接口返回 pageNum/pageSize/total/list 标准结构
+   d. POST 请求 → 验证数据落库：
+      → 直连数据库查询刚写入的记录
+      → 字段值与请求参数一致
+      → 审计列（created_at/updated_at）自动填充
+      → created_by/updated_by 为当前用户
+   e. PUT 请求 → 验证数据更新落库
+   f. DELETE 请求 → 验证数据标记删除（deleted_at 非空）或物理删除
+   g. 鉴权测试 → 无 token 返回 2004，有效 token 正常返回
+10. CLEANUP  kill 后端端口进程
+           → Windows: netstat -ano | findstr :{port} → taskkill /PID {pid} /F
+           → Linux/Mac: lsof -ti:{port} | xargs kill -9
+           → 轮询确认端口已释放（最多 3 次确认）
+11. REPORT  输出 <binding-compliance> 标记（含自启校验结果）
+           → 交还 flow-orchestrator 校验
 ```
 
 ---
@@ -94,16 +121,32 @@
 
 ```yaml
 project:
+  rootPath: ""              # 项目根路径（Phase 0 传入）
+  dirName: "vitrine-server" # 后端子目录名（Phase 0 检测，非固定名称）
   name: "myapp-server"
   basePackage: "com.example"
   port: 8200
+
+# ★ 本机运行时环境（Phase 0 确认后传入）
+maven:
+  home: ""                  # 如 E:\apache-maven-3.6.3
+  settings: ""              # 如 E:\apache-maven-3.6.3\conf\settings.xml
+  repository: ""            # 如 E:\repository（本地仓库路径）
 
 tech:
   javaVersion: 17
   bootVersion: "3.2.5"
   dbType: "postgresql"
 
-middleware:           # 仅 enabled=true 时才加载对应 rule+skill
+db:                         # 数据库连接（用于 SELF-TEST 数据落库验证）
+  type: "postgresql"
+  host: "localhost"
+  port: 5432
+  database: ""
+  username: ""
+  password: ""              # 绝不输出到日志/报告
+
+middleware:                 # 仅 enabled=true 时才加载对应 rule+skill
   security:  { enabled: true }
   redis:     { enabled: false }
   rabbitmq:  { enabled: false }
@@ -128,8 +171,14 @@ middleware:           # 仅 enabled=true 时才加载对应 rule+skill
 8. □ 数据库表是否有 COMMENT ON + 审计列？
 9. □ 是否有 System.out/err.println？（禁止）
 10. □ mvn compile 是否通过？（禁止编译错误）
-11. □ 服务能否自启动并响应 /actuator/health？
-12. □ 基于 Link 契约的每个接口是否可达（HTTP 请求→响应码/响应体/数据落库正确）？
+11. □ 服务能否使用指定 Maven 环境自启动并响应 /actuator/health？
+12. □ 所有 API 自测请求是否通过（响应码/响应体与契约一致）？
+13. □ POST 请求数据落库是否与请求参数一致（含审计列自动填充）？
+14. □ PUT 请求数据更新落库是否正确？
+15. □ DELETE 请求数据是否正确删除/标记删除（deleted_at 非空）？
+16. □ 鉴权拦截是否生效（无 token→2004，有效 token→正常返回）？
+17. □ 分页接口是否返回 pageNum/pageSize/total/list 标准结构？
+18. □ 后端端口是否已清理（确认进程已终止）？
 
 ---
 

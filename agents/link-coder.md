@@ -19,13 +19,50 @@
 ## 执行协议
 
 ```
-1. RECEIVE 接收 flow-orchestrator 的调度指令（含指定维度 + Phase 1 设计产物作为输入上下文）
-2. LOAD    读取指定维度的 rule 文件 → 提取核心约束
-3. LOAD    读取指定维度的 skill 文件 → 提取模板
-4. KNOWLEDGE 读取 knowledge/prd/<dimension>.md → 查阅历史踩坑记录，避坑
-5. EXECUTE 按 rule 约束 + skill 模板 + 知识库经验生成契约
-6. VERIFY  对照 rule 逐条自检契约完整性 → PASS 则输出，FAIL 则补充后重检（最多 3 轮）
-7. REPORT  输出 <contract-compliance> 标记 → 交还 flow-orchestrator 校验
+1. RECEIVE  接收 flow-orchestrator 的调度指令（含指定维度 + Phase 1 设计产物作为输入上下文）
+2. LOAD     读取指定维度的 rule 文件 → 提取核心约束
+3. DERIVE   ★ 读取 Phase 1 产出的 detailed-design.md → 提取数据库字段类型
+            → 对每个业务实体，提取：字段名/DB类型/长度/是否可空/默认值/注释
+            → 将 DB 字段映射到对应的 API Request/Response 字段
+            → 按类型推导规则生成精确的示例值（非随意占位符）
+4. LOAD     读取指定维度的 skill 文件 → 提取模板
+5. KNOWLEDGE 读取 knowledge/prd/<dimension>.md → 查阅历史踩坑记录，避坑
+6. EXECUTE  按 rule 约束 + skill 模板 + 知识库经验 + DERIVE 推导结果生成契约
+7. VERIFY   对照 rule 逐条自检契约完整性 → PASS 则输出，FAIL 则补充后重检（最多 3 轮）
+8. REPORT   输出 <contract-compliance> 标记 → 交还 flow-orchestrator 校验
+```
+
+### DERIVE 步骤详解
+
+此步骤是契约精确化的核心，确保每个 API 字段的示例值有据可查：
+
+```
+步骤 3.1: 读取 detailed-design.md
+          → 定位「数据库表设计」或「数据模型」章节
+
+步骤 3.2: 提取实体字段定义
+          示例输入（detailed-design.md 原文）：
+          ┌──────────────────────────────────────────────────┐
+          │ ### 1.1 管理员用户 `users`                       │
+          │ | 字段          | 类型              | 说明       │
+          │ | id            | BIGSERIAL PK      | 主键       │
+          │ | username      | VARCHAR(64) UNIQUE | 登录账号  │
+          │ | password_hash | VARCHAR(128)       | BCrypt哈希 │
+          │ | avatar_url    | VARCHAR(512)       | 头像URL    │
+          └──────────────────────────────────────────────────┘
+
+步骤 3.3: 映射到 API 字段 → 推导示例值
+          输出：
+          ┌──────────────┬──────────┬─────────────────────────┐
+          │ API 字段      │ DB 来源   │ 推导示例值              │
+          ├──────────────┼──────────┼─────────────────────────┤
+          │ id            │ BIGSERIAL│ "1" (序列化string)     │
+          │ username      │ VARCHAR  │ "admin" (合法登录账号)  │
+          │ password_hash │ VARCHAR  │ — (不在Response中暴露) │
+          │ avatar_url    │ VARCHAR  │ "https://cdn.example.  │
+          │               │ (512)    │  com/avatars/default.   │
+          │               │          │  png"                   │
+          └──────────────┴──────────┴─────────────────────────┘
 ```
 
 ---
@@ -78,9 +115,9 @@
 - 描述:   {一句话描述}
 
 ### Request
-| 字段名 | 类型 | 必填 | 格式/约束 | 说明 | 示例值 |
-|---|---|---|---|---|---|
-| name | String | 是 | 1-100 字符 | 知识库名称 | "我的知识库" |
+| 字段名 | 类型 | 必填 | 格式/约束 | 说明 | 示例值 | 来源（DB字段） |
+|---|---|---|---|---|---|---|
+| name | String | 是 | 1-100 字符 | 知识库名称 | "我的知识库" | knowledge_base.name VARCHAR(100) NOT NULL |
 
 ### Response
 ```json
@@ -88,8 +125,9 @@
 ```
 
 ### Response 字段说明
-| 字段名 | 类型 | 格式 | 说明 |
-|---|---|---|---|
+| 字段名 | 类型 | 格式 | 说明 | 来源（DB字段） |
+|---|---|---|---|---|
+| id | String | — | 知识库ID | knowledge_base.id BIGSERIAL PK |
 
 ### 错误码
 | 场景 | code | message |
@@ -97,6 +135,36 @@
 
 ### 契约完整性校验
 每个功能模块必须覆盖: 列表/详情/新增/编辑/删除 + 字段类型 + 错误码
+
+---
+
+### 示例值推导规则
+
+> 示例值来源于 detailed-design.md 中的数据库字段类型，不可随意填充。推导规则如下：
+
+| DB 字段类型 | 推导的示例值 | 说明 |
+|------------|-------------|------|
+| `BIGSERIAL` / `BIGINT` / `INTEGER` PK | `"1"`（字符串） | Long ID 前端精度安全 |
+| `VARCHAR(N)` (N ≤ 100) | 合法中文/英文文本，不超过 N 字符 | 如 `"示例名称"` |
+| `VARCHAR(N)` (N > 100) | 合法 URL 或长文本 | 如 `"https://cdn.example.com/upload/sample.jpg"` |
+| `TEXT` | 多行文本段落 | 如 `"这是一段描述文本，包含多行内容。"` |
+| `BOOLEAN` / `BOOL` | `true` 或 `false` | 布尔值 |
+| `INTEGER` / `INT` | 整数 | 如 `0`、`100` |
+| `DECIMAL(M,D)` | 合法小数，保留 D 位 | 如 `99.99` |
+| `TIMESTAMP` / `LocalDateTime` | `"2026-01-15 10:30:00"` | `yyyy-MM-dd HH:mm:ss` |
+| `DATE` / `LocalDate` | `"2026-01-15"` | `yyyy-MM-dd` |
+| `VARCHAR` + URL 语义 | 合法 CDN URL | 如 `"https://cdn.example.com/upload/sample.jpg"` |
+| `VARCHAR` + 枚举语义 | 枚举值之一 | 如 `"active"` / `"inactive"` |
+| `JSON` / `JSONB` | 合法 JSON 字符串 | 如 `{"key": "value"}` |
+
+### 推导特殊情况处理
+
+| 场景 | 处理方式 |
+|------|---------|
+| DB 字段与 API 字段名不一致 | 标注映射关系，示例值仍按 DB 类型推导 |
+| API 字段无对应 DB 字段（计算字段） | 标注"计算字段，非 DB 来源"，示例值按业务逻辑推导 |
+| DB 字段不在任何 API 中暴露（如 password_hash） | 不出现在契约中 |
+| 字段有默认值且 API 为可选 | 示例值标注默认值 |
 
 ---
 
@@ -133,14 +201,18 @@
 > 每次契约生成后必须逐条自检。任何条目缺失必须立即补充。
 
 1. □ 是否已加载对应维度的 rule 和 skill？
-2. □ 每个接口的 URL/Method/Request/Response 是否完整定义？
-3. □ 每个 Response 字段的类型是否声明了格式（Long→String / 日期格式）？
-4. □ 分页接口是否定义了 pageNum/pageSize 规范？
-5. □ Long ID 是否在契约中标注序列化方式（@JsonSerialize → string）？
-6. □ Token 存储键名是否在契约中统一为 `token`？
-7. □ Token 过期错误码是否在契约中统一为 2004？
-8. □ TypeScript 类型定义是否在契约中声明（与后端 VO/DTO 对应）？
-9. □ 每个接口是否有错误码映射表？
+2. □ 是否已执行 DERIVE 步骤：读取 detailed-design.md 并提取 DB 字段类型？
+3. □ 每个接口的 URL/Method/Request/Response 是否完整定义？
+4. □ 每个字段的示例值是否标注了来源（DB 字段名+类型）？
+5. □ 示例值是否按 DB 字段类型推导规则生成（非随意占位符）？
+6. □ 每个 Response 字段的类型是否声明了格式（Long→String / 日期格式）？
+7. □ 分页接口是否定义了 pageNum/pageSize 规范？
+8. □ Long ID 是否在契约中标注序列化方式（@JsonSerialize → string）？
+9. □ Token 存储键名是否在契约中统一为 `token`？
+10. □ Token 过期错误码是否在契约中统一为 2004？
+11. □ TypeScript 类型定义是否在契约中声明（与后端 VO/DTO 对应）？
+12. □ 每个接口是否有错误码映射表？
+13. □ 密码/敏感字段是否不在契约 Response 中出现？
 
 ---
 
