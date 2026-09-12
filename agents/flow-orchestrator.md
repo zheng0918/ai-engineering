@@ -174,8 +174,10 @@ iteration:
 startPhase: 0                         # 起始 Phase（0-5，默认 0 = 完整流程）
                                       # Phase 0 扫描后自动推荐，用户可覆盖
 externalInputs:                       # 跳过的 Phase 产物须由外部提供
+  prototypeAdmin: ""                  # ★ Phase 1.5 输入：admin 高保真原型路径
+  prototypeMiniApp: ""                # ★ Phase 1.5 输入：miniapp 高保真原型路径
+  dataModel: ""                       # ★ Phase 1.5 产物：数据模型文档路径
   systemDesign: ""                    # Phase 1 产物：架构设计+详细设计文档路径
-  prototype: ""                       # Phase 1 产物：高保真原型路径
   linkContract: ""                    # Phase 2 产物：API 契约文档路径
   schemaSql: ""                       # Phase 2.5 输入：数据库 DDL 路径
 ```
@@ -190,7 +192,7 @@ externalInputs:                       # 跳过的 Phase 产物须由外部提供
 
 ```
 1. Phase 0 扫描项目 + 确认参数时，读取 startPhase
-2. startPhase 未填写 → 询问用户："从哪个 Phase 开始？（0-5，默认 0）"
+2. startPhase 未填写 → 询问用户："从哪个 Phase 开始？（0 / 1 / 1.5 / 2 / 2.5 / 3 / 4 / 5，默认 0）"
 3. 验证 externalInputs：被跳过的 Phase 必须有对应外部产物路径
 4. 产物路径不可读或无内容 → 拒绝执行，要求补全
 5. Phase 3 内部三端仍按 targets 开关控制
@@ -203,6 +205,7 @@ externalInputs:                       # 跳过的 Phase 产物须由外部提供
 | 0（默认） | 无 | 无（仅需 project.rootPath） | 完整流程 |
 | 1 | Phase 0 | 项目参数已手动确认 | 项目已人工扫描，直接开始设计 |
 | 2 | Phase 0-1 | systemDesign + prototype | 设计文档已有（手工/第三方），只生成契约+代码 |
+| **1.5** | Phase 0-1 | `prototypeAdmin` + `prototypeMiniApp` | 原型已有，无 PRD，反推数据模型 |
 | 2.5 | Phase 0-2 | systemDesign + prototype + linkContract | Link 契约已有，跳过设计+契约，只建库+编码 |
 | 3 | Phase 0-2.5 | systemDesign + prototype + linkContract + 数据库已就绪 | DB 已建好，三端并行编码 |
 | 4 | Phase 0-3 | 以上全部 + 代码已生成 | 代码修 bug 后只重新跑集成验证 |
@@ -211,12 +214,13 @@ externalInputs:                       # 跳过的 Phase 产物须由外部提供
 ### 产物匹配校验
 
 ```
-startPhase >= 1 : project.rootPath 非空
-startPhase >= 2 : externalInputs.systemDesign 非空 + 文件存在
-startPhase >= 2 : externalInputs.prototype 非空 + 文件存在
-startPhase >= 3 : externalInputs.linkContract 非空 + 文件存在
-startPhase >= 3 : externalInputs.schemaSql 非空 + 文件存在（或 Phase 2.5 已完成）
-startPhase >= 4 : 项目目录存在（代码已生成）
+startPhase >= 1   : project.rootPath 非空
+startPhase >= 1.5 : externalInputs.prototypeAdmin + prototypeMiniApp 非空且文件存在
+startPhase >= 2   : externalInputs.dataModel 非空 + 文件存在
+startPhase >= 2.5 : externalInputs.linkContract 非空 + 文件存在
+startPhase >= 2.5 : 数据库已就绪（Phase 2.5 已完成 或 schema.sql 可执行）
+startPhase >= 3   : targets 已确认（各端 mode / dirName 齐全）
+startPhase >= 4   : 项目目录存在（代码已生成）
 ```
 
 ---
