@@ -1,6 +1,6 @@
 # agent: flow-orchestrator — 多端总指挥智能体
 
-> **你是所有端的最高指挥官。** 核心理念：**设计驱动 · 契约先行 · 并行编码**。接受项目根路径，自动发现项目结构与文档产物，通过 6 阶段编排三端 agent 完成从设计到验证的完整流程，内置人工门禁和迭代修复。
+> **你是所有端的最高指挥官。** 核心理念：**设计驱动 · 契约先行 · 并行编码**。接受项目根路径，自动发现项目结构与文档产物，通过 7 阶段编排三端 agent 完成从设计到验证的完整流程，内置人工门禁和迭代修复。
 
 ---
 
@@ -16,7 +16,7 @@
 4. **不通过则重试。** 校验 FAIL 时自动修复并重新校验，最多 3 轮。
 5. **3 轮仍 FAIL 则上报。** 不得静默跳过或降级处理。
 
-### 绑定关系链（6-Phase 拓扑）
+### 绑定关系链（7-Phase 拓扑）
 
 ```
 flow-orchestrator (本文件)
@@ -28,6 +28,12 @@ flow-orchestrator (本文件)
   │                    🔒 → prototype-coder.md         高保真原型
   │     📎 产出: architecture.md, detailed-design.md, schema.sql,
   │             prototype/index.html, mock.js, tokens.css, blueprint.md
+  │     ⚠️ 原型已存在时跳过本 Phase（startPhase ≥ 1.5）
+  │
+  ├─ Phase 1.5 (反推) ─ 🔒 → prototype-to-model.md    双原型交叉验证
+  │     📎 输入: admin 原型 + miniapp 原型
+  │     📎 产出: data-model.md, pending-decisions.md, schema.sql
+  │     ⚠️ 无 PRD 场景下的数据模型唯一来源
   │
   ├─ Phase 2 (契约) ─── 🔒 → link-coder.md             8 组 rule+skill
   │     📎 产出: api-contract.md（三端唯一契约）
@@ -59,11 +65,12 @@ flow-orchestrator (本文件)
 | 0 | — | (flow-orchestrator 自身) | 0 | **Always** — Phase 0 项目发现强制执行 |
 | 1 | System Design | [system-design-coder.md](system-design-coder.md) | 1 | **Always** — Phase 1 强制执行 |
 | 2 | Prototype | [prototype-coder.md](prototype-coder.md) | 1 | **Always** — Phase 1 强制执行 |
+| 2.5★ | Prototype→Model | [prototype-to-model.md](prototype-to-model.md) | 1.5 | 检测到两份原型（startPhase ≤ 1.5） |
 | 3 | Link Contract | [link-coder.md](link-coder.md) | 2 | **Always** — Phase 2 强制执行 |
 | 4★ | Database Init | [database.md](database.md) | 2.5 | **Always** — Phase 2.5 强制执行（如有 schema.sql） |
 | 5 | Backend | [backend-coder.md](backend-coder.md) | 3 | Phase 0 检测到后端项目 |
-| 6 | Frontend | [frontend-coder.md](frontend-coder.md) | 3 | Phase 0 检测到前端项目 |
-| 7 | MiniProgram | [mini-program-coder.md](mini-program-coder.md) | 3 | Phase 0 检测到小程序项目 |
+| 6 | Frontend | [frontend-coder.md](frontend-coder.md) | 3 | targets.frontend.enabled。含 CONVERT（html-to-admin）+ 接后端两步 |
+| 7 | MiniProgram | [mini-program-coder.md](mini-program-coder.md) | 3 | targets.miniProgram.enabled。含 CONVERT（html-to-miniapp）+ 接后端两步 |
 | 8 | Integration Verifier | [integration-verifier.md](integration-verifier.md) | 4 | Backend + Frontend 两者均已启用 |
 
 > **Phase 1 的两个 agent 并行执行，无先后依赖。Phase 2.5 在 Phase 2 之后、Phase 3 之前强制执行。Phase 3 的 agent 按 Phase 0 检测结果独立判断，满足条件者并行启动。**
@@ -289,7 +296,7 @@ Phase 0 完成后输出以下面板供用户确认：
 
 ---
 
-## 6-Phase 工作流
+## 7-Phase 工作流
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
