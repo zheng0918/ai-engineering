@@ -259,11 +259,15 @@
 
 Run:
 ```bash
-grep -c "^## " agents/prototype-to-model.md
+grep -n "^## " agents/prototype-to-model.md
 ```
-Expected: `10`（角色画像 / 执行协议 / 交叉验证规则 / 数据模型 Schema / 待确认项 Schema / 合规自检清单 / 完成标记 / 禁止事项 = 8 个 `##`，加文件内 Schema 代码块中的注释行不计入）
+Expected: 共 **16** 条。其中**代码块之外**的真实章节标题必须恰好是这 8 个，且顺序一致：
 
-实际期望值以 `grep -n "^## " agents/prototype-to-model.md` 的输出为准，逐条核对是否为：角色画像、执行协议、交叉验证规则、数据模型 Schema、待确认项 Schema、合规自检清单、完成标记、禁止事项。
+`## 角色画像` / `## 执行协议` / `## 交叉验证规则` / `## 数据模型 Schema` / `## 待确认项 Schema` / `## 合规自检清单` / `## 完成标记` / `## 禁止事项`
+
+另外 8 条（`## 0. 元信息` 至 `## 7. 审计与通用列`）来自「数据模型 Schema」一节内嵌的 ```` ```markdown ```` 模板，是示例内容，不计入章节数。
+
+> **计数陷阱**：直接 `grep -c "^## "` 得到的是 16 而不是 8 —— 内嵌模板的标题同样以 `## ` 开头。必须逐条比对标题文本，不可用计数判定。
 
 - [ ] **Step 3: 验证关键标记存在**
 
@@ -332,6 +336,14 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 同时把该代码块上方的标题 `### 绑定关系链（6-Phase 拓扑）` 改为 `### 绑定关系链（7-Phase 拓扑）`，并把文件开头介绍段（第 3 行）中的 `通过 6 阶段编排` 改为 `通过 7 阶段编排`。
 
+**还有一处 `6-Phase` 必须一并改** —— 本节之外，文件下半部有一个章节标题 `## 6-Phase 工作流`（该章节内含完整流程图）。改为：
+
+```
+## 7-Phase 工作流
+```
+
+> 该章节的流程图内容由 Task 5 插入 Phase 1.5 段落，本步只改标题文字。
+
 - [ ] **Step 2: 在编排表中新增 Phase 1.5 行**
 
 找到 `## 可用端级智能体` 下的表格，在 `| 3 | Link Contract |` 行之前插入：
@@ -377,9 +389,11 @@ Expected:
 
 Run:
 ```bash
-grep -n "6-Phase 拓扑" agents/flow-orchestrator.md
+grep -n "6-Phase" agents/flow-orchestrator.md
 ```
 Expected: 无输出（退出码 1）
+
+> 该断言覆盖**两处**：`### 绑定关系链（6-Phase 拓扑）` 与 `## 6-Phase 工作流`。只改前者会让这条断言失败。
 
 - [ ] **Step 6: 提交**
 
@@ -978,11 +992,13 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 3. DERIVE   ★ 读取 Phase 1.5 产出的 docs/data-model.md → 提取实体字段定义
             → 读取第 2 节「实体字段定义」，逐实体提取：
-              字段名 / DB类型 / 长度 / 是否可空 / 唯一 / 默认值 / 枚举 / 注释 / 置信度
+              字段名 / DB类型 / 长度 / 是否可空 / 唯一 / 默认值 / 枚举 / 注释 / 来源证据 / 置信度
             → 将 DB 字段映射到对应的 API Request/Response 字段
             → 按类型推导规则生成精确的示例值（非随意占位符）
             ⚠️ 置信度为 LOW 的字段：在契约中标注「需确认」，不得默认为确定值
 ```
+
+> **列名对齐**：`来源证据` 是 data-model.md 第 2 节的列之一（由 Phase 1.5 的 prototype-to-model 产出），DERIVE 必须读取它 —— 契约的「来源」列直接引用该值。
 
 - [ ] **Step 2: 更新 DERIVE 步骤详解的输入示例**
 
@@ -1010,6 +1026,18 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 ```
           示例输入（data-model.md 第 2.1 节原文）：
+```
+
+**再替换示例值推导规则的引言**（位于 `### 示例值推导规则` 一节）：找到：
+
+```
+> 示例值来源于 detailed-design.md 中的数据库字段类型，不可随意填充。推导规则如下：
+```
+
+替换为：
+
+```
+> 示例值来源于 docs/data-model.md 中的实体字段类型，不可随意填充。推导规则如下：
 ```
 
 - [ ] **Step 3: 更新自检清单**
